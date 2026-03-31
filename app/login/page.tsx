@@ -6,18 +6,36 @@ import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { ZiplineLogo } from "@/components/logo/ZiplineLogo";
 import { GradientButton } from "@/components/ui/gradient-button";
 import { ShaderBackground } from "@/components/ui/shader-background";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => router.push("/dashboard"), 600);
+    setError("");
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    } else {
+      router.push("/dashboard");
+    }
+  };
+
+  const handleGoogle = async () => {
+    const supabase = createClient();
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
   };
 
   return (
@@ -83,6 +101,10 @@ const [loading, setLoading] = useState(false);
             </div>
 
 
+            {error && (
+              <p className="text-xs text-[#FF4533] text-center -mt-1">{error}</p>
+            )}
+
             {/* Submit */}
             <GradientButton
               type="submit"
@@ -107,6 +129,7 @@ const [loading, setLoading] = useState(false);
           {/* Google Sign In */}
           <button
             type="button"
+            onClick={handleGoogle}
             className="w-full h-12 rounded-2xl text-white text-sm font-medium transition-all flex items-center justify-center gap-3"
             style={{
               background: "rgba(255,255,255,0.08)",
