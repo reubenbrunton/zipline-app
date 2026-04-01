@@ -216,7 +216,7 @@ export default function TeamPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.2 }}
-              className="w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0D0D1A] p-6 shadow-2xl"
+              className="w-full max-w-md rounded-2xl border border-white/[0.12] bg-white/[0.07] backdrop-blur-xl p-6 shadow-2xl"
             >
               {/* Form step */}
               {step === "form" && (
