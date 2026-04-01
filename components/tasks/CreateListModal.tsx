@@ -9,7 +9,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useCreateList, useUpdateList } from "@/hooks/tasks";
-import { crmContacts } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { List, ListStage } from "@/types/tasks";
 
@@ -46,13 +45,13 @@ export function CreateListModal({
   const [name, setName] = useState("");
   const [selectedColor, setSelectedColor] = useState(COLOR_SWATCHES[0]);
   const [customHex, setCustomHex] = useState(COLOR_SWATCHES[0]);
-  const [selectedClientId, setSelectedClientId] = useState<number | "">("");
+  const [clientName, setClientName] = useState("");
   const [showValidation, setShowValidation] = useState(false);
 
   const createList = useCreateList();
   const updateList = useUpdateList();
-  const clientOptions = [...crmContacts].sort((a, b) => a.company.localeCompare(b.company));
   const isEditing = Boolean(editingList);
+  const isSimpleList = (editingList?.stage ?? defaultStage) === "parked";
 
   useEffect(() => {
     if (!open) return;
@@ -62,38 +61,23 @@ export function CreateListModal({
       setName(editingList.name);
       setSelectedColor(baseColor);
       setCustomHex(baseColor);
-
-      if (typeof editingList.client_contact_id === "number") {
-        setSelectedClientId(editingList.client_contact_id);
-      } else if (editingList.client_name) {
-        const matched = crmContacts.find((contact) => contact.company === editingList.client_name);
-        setSelectedClientId(matched?.id ?? "");
-      } else {
-        setSelectedClientId("");
-      }
+      setClientName(editingList.client_name ?? "");
     } else {
       setName("");
       setSelectedColor(COLOR_SWATCHES[0]);
       setCustomHex(COLOR_SWATCHES[0]);
-      setSelectedClientId("");
+      setClientName("");
     }
 
     setShowValidation(false);
   }, [open, editingList]);
 
   const hasNameError = showValidation && !name.trim();
-  const hasClientError = showValidation && selectedClientId === "";
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setShowValidation(true);
-
-    if (!name.trim() || selectedClientId === "") return;
-
-    const selectedClient =
-      crmContacts.find((contact) => contact.id === selectedClientId) ?? null;
-
-    if (!selectedClient) return;
+    if (!name.trim()) return;
 
     if (editingList) {
       updateList.mutate(
@@ -102,15 +86,10 @@ export function CreateListModal({
           patch: {
             name: name.trim(),
             color: selectedColor,
-            client_contact_id: selectedClient.id,
-            client_name: selectedClient.company,
+            client_name: isSimpleList ? undefined : clientName.trim() || undefined,
           },
         },
-        {
-          onSuccess: () => {
-            onClose();
-          },
-        }
+        { onSuccess: onClose }
       );
       return;
     }
@@ -120,14 +99,9 @@ export function CreateListModal({
         name: name.trim(),
         color: selectedColor,
         stage: defaultStage,
-        client_contact_id: selectedClient.id,
-        client_name: selectedClient.company,
+        client_name: isSimpleList ? undefined : clientName.trim() || undefined,
       },
-      {
-        onSuccess: () => {
-          onClose();
-        },
-      }
+      { onSuccess: onClose }
     );
   }
 
@@ -135,7 +109,7 @@ export function CreateListModal({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="bg-white/[0.07] border-white/[0.08] backdrop-blur-xl">
         <DialogHeader>
-          <DialogTitle>{isEditing ? "Edit project" : "Create a new project"}</DialogTitle>
+          <DialogTitle>{isEditing ? (isSimpleList ? "Edit list" : "Edit project") : (isSimpleList ? "Create a new list" : "Create a new project")}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -160,36 +134,20 @@ export function CreateListModal({
             )}
           </div>
 
-          {/* Client */}
-          <div>
-            <label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
-              Client
-            </label>
-            <select
-              required
-              value={selectedClientId}
-              onChange={(e) => {
-                const value = e.target.value;
-                setSelectedClientId(value === "" ? "" : Number(value));
-              }}
-              className={cn(
-                "w-full h-10 px-3 rounded-lg bg-white/[0.04] border text-sm text-white focus:outline-none focus:ring-1 focus:ring-[#FF4533] transition-colors",
-                hasClientError ? "border-red-400/60" : "border-white/[0.08]"
-              )}
-            >
-              <option value="" className="bg-[#1A1A2E] text-white/80">
-                No client selected
-              </option>
-              {clientOptions.map((contact) => (
-                <option key={contact.id} value={contact.id} className="bg-[#1A1A2E] text-white">
-                  {contact.company} — {contact.contact}
-                </option>
-              ))}
-            </select>
-            {hasClientError && (
-              <p className="mt-1.5 text-xs text-red-300">Client is required.</p>
-            )}
-          </div>
+          {/* Client — only for project lists */}
+          {!isSimpleList && (
+            <div>
+              <label className="text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-2 block">
+                Client <span className="normal-case font-normal text-[#8888AA]/60">(optional)</span>
+              </label>
+              <input
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                placeholder="e.g. Apex Capital"
+                className="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-[#8888AA] focus:outline-none focus:ring-1 focus:ring-[#FF4533] transition-colors"
+              />
+            </div>
+          )}
 
           {/* Color */}
           <div>
@@ -257,19 +215,14 @@ export function CreateListModal({
               type="submit"
               disabled={
                 !name.trim() ||
-                selectedClientId === "" ||
                 createList.isPending ||
                 updateList.isPending
               }
               className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#FF4533] text-white hover:bg-[#e03d2d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isEditing
-                ? updateList.isPending
-                  ? "Saving…"
-                  : "Save Changes"
-                : createList.isPending
-                ? "Creating…"
-                : "Create Project"}
+                ? updateList.isPending ? "Saving…" : "Save Changes"
+                : createList.isPending ? "Creating…" : isSimpleList ? "Create List" : "Create Project"}
             </button>
           </DialogFooter>
         </form>
