@@ -38,6 +38,8 @@ export interface Task {
   priority: Priority
   assignee_id?: string
   assignee?: Profile
+  assignee_ids?: string[]
+  assignees?: Profile[]
   time_estimate_minutes?: number
   position: number
   due_date?: string

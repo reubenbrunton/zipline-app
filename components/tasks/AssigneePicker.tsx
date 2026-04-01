@@ -7,17 +7,32 @@ import { AssigneeAvatar } from "./AssigneeAvatar";
 interface AssigneePickerProps {
   value?: string;
   onChange: (value?: string) => void;
+  values?: string[];
+  onValuesChange?: (values: string[]) => void;
   label?: string;
   compact?: boolean;
+  multiple?: boolean;
 }
 
 export function AssigneePicker({
   value,
   onChange,
+  values,
+  onValuesChange,
   label = "Assignee",
   compact = false,
+  multiple = false,
 }: AssigneePickerProps) {
   const { data: profiles = [], isLoading } = useProfiles();
+  const selectedValues = multiple ? values ?? [] : value ? [value] : [];
+
+  function toggleValue(profileId: string) {
+    if (!multiple || !onValuesChange) return;
+    const nextValues = selectedValues.includes(profileId)
+      ? selectedValues.filter((id) => id !== profileId)
+      : [...selectedValues, profileId];
+    onValuesChange(nextValues);
+  }
 
   if (compact) {
     return (
@@ -48,10 +63,10 @@ export function AssigneePicker({
       <div className="space-y-2">
         <button
           type="button"
-          onClick={() => onChange(undefined)}
+          onClick={() => (multiple ? onValuesChange?.([]) : onChange(undefined))}
           className={cn(
             "w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
-            !value
+            selectedValues.length === 0
               ? "border-[#FF4533]/40 bg-[#FF4533]/10 text-white"
               : "border-white/[0.08] bg-white/[0.03] text-white/70 hover:bg-white/[0.06]"
           )}
@@ -71,12 +86,12 @@ export function AssigneePicker({
           </div>
         ) : (
           profiles.map((profile) => {
-            const selected = profile.id === value;
+            const selected = selectedValues.includes(profile.id);
             return (
               <button
                 key={profile.id}
                 type="button"
-                onClick={() => onChange(profile.id)}
+                onClick={() => (multiple ? toggleValue(profile.id) : onChange(profile.id))}
                 className={cn(
                   "w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
                   selected

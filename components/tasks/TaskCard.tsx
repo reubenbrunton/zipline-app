@@ -9,6 +9,7 @@ import { formatMinutes } from "@/lib/tasks-api";
 import { useUpdateTask, useDeleteTask, useUpdateSubtask } from "@/hooks/tasks";
 import type { Task, TaskStatus, Priority } from "@/types/tasks";
 import { AssigneeAvatar } from "./AssigneeAvatar";
+import { TaskAssigneeMenu } from "./TaskAssigneeMenu";
 
 const STATUS_ORDER: TaskStatus[] = ["backlog", "this_week", "today", "done"];
 
@@ -57,6 +58,7 @@ export function TaskCard({ task, listId, onClick, isOverlay, className }: TaskCa
   const isDone = task.status === "done" || !!task.completed_at;
   const subtasks = task.subtasks ?? [];
   const completedSubtasks = subtasks.filter((s) => s.is_complete).length;
+  const assignees = task.assignees ?? (task.assignee ? [task.assignee] : []);
 
   const currentStatusIdx = STATUS_ORDER.indexOf(task.status);
   const canMoveLeft = currentStatusIdx > 0;
@@ -223,12 +225,20 @@ export function TaskCard({ task, listId, onClick, isOverlay, className }: TaskCa
           </span>
         )}
 
-        {/* Assignee avatar */}
-        {task.assignee && (
-          <div className="ml-auto flex-shrink-0" title={task.assignee.full_name ?? task.assignee.email}>
-            <AssigneeAvatar profile={task.assignee} size="xs" />
+        {!isOverlay ? (
+          <TaskAssigneeMenu
+            assigneeIds={task.assignee_ids ?? []}
+            onChange={(assignee_ids) => updateTask.mutate({ id: task.id, patch: { assignee_ids } })}
+          />
+        ) : assignees.length > 0 ? (
+          <div className="ml-auto flex items-center">
+            {assignees.slice(0, 3).map((assignee, index) => (
+              <div key={assignee.id} className={cn(index > 0 && "-ml-1.5")}>
+                <AssigneeAvatar profile={assignee} size="xs" />
+              </div>
+            ))}
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Hover actions */}

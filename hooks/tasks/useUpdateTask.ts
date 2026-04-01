@@ -21,7 +21,14 @@ export function useUpdateTask() {
                 ? {
                     ...t,
                     ...patch,
-                    assignee: Object.prototype.hasOwnProperty.call(patch, "assignee_id") ? undefined : t.assignee,
+                    assignee_id: Object.prototype.hasOwnProperty.call(patch, "assignee_ids")
+                      ? patch.assignee_ids?.[0]
+                      : t.assignee_id,
+                    assignee: Object.prototype.hasOwnProperty.call(patch, "assignee_ids") ? undefined : t.assignee,
+                    assignee_ids: Object.prototype.hasOwnProperty.call(patch, "assignee_ids")
+                      ? patch.assignee_ids
+                      : t.assignee_ids,
+                    assignees: Object.prototype.hasOwnProperty.call(patch, "assignee_ids") ? undefined : t.assignees,
                     completed_at:
                       patch.status === "done"
                         ? t.completed_at ?? new Date().toISOString()

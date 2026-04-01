@@ -222,11 +222,6 @@ export default function TeamPage() {
           <p className="text-sm text-[#8888AA] mt-0.5">
             {isLoading ? "Loading…" : queryError ? "Error loading members" : `${members.length} member${members.length !== 1 ? "s" : ""}`}
           </p>
-          {!canManageMembers && currentUser?.email && (
-            <p className="text-xs text-[#8888AA]/80 mt-1">
-              View only. Team access is managed by {TEAM_OWNER_EMAIL}.
-            </p>
-          )}
         </div>
         {canManageMembers && (
           <button onClick={openWizard} className="flex items-center gap-2 px-3 py-1.5 bg-[#FF4533] hover:bg-[#e03d2d] text-white text-xs font-semibold rounded-lg transition-colors">

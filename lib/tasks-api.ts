@@ -1,6 +1,99 @@
 import { createClient } from '@/lib/supabase/client'
 import type { List, Task, Subtask, Profile, ListStage } from '@/types/tasks'
 
+type ProfileRow = {
+  id: string
+  full_name: string | null
+  email: string | null
+  avatar_url: string | null
+}
+
+function mapProfile(row: ProfileRow): Profile {
+  return {
+    id: row.id,
+    full_name: row.full_name ?? undefined,
+    email: row.email ?? '',
+    avatar_url: row.avatar_url ?? undefined,
+  }
+}
+
+function uniqueIds(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.filter(Boolean))) as string[]
+}
+
+async function getProfilesByIds(supabase: ReturnType<typeof createClient>, ids: string[]): Promise<Record<string, Profile>> {
+  if (ids.length === 0) return {}
+
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', ids)
+
+  return Object.fromEntries((profiles ?? []).map((profile) => [profile.id, mapProfile(profile as ProfileRow)]))
+}
+
+async function syncTaskAssignees(
+  supabase: ReturnType<typeof createClient>,
+  taskId: string,
+  assigneeIds: string[]
+): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from('task_assignees')
+    .delete()
+    .eq('task_id', taskId)
+
+  if (deleteError) throw deleteError
+
+  if (assigneeIds.length === 0) return
+
+  const { error: insertError } = await supabase
+    .from('task_assignees')
+    .insert(assigneeIds.map((userId) => ({ task_id: taskId, user_id: userId })))
+
+  if (insertError) throw insertError
+}
+
+async function fetchTaskById(supabase: ReturnType<typeof createClient>, taskId: string): Promise<Task> {
+  const { data: task, error } = await supabase
+    .from('tasks')
+    .select('*, subtasks(*), task_assignees(user_id)')
+    .eq('id', taskId)
+    .single()
+
+  if (error) throw error
+
+  const assigneeIds = uniqueIds((task.task_assignees ?? []).map((assignment: { user_id: string | null }) => assignment.user_id))
+  const profileMap = await getProfilesByIds(supabase, assigneeIds)
+  const assignees = assigneeIds
+    .map((assigneeId) => profileMap[assigneeId])
+    .filter((profile): profile is Profile => Boolean(profile))
+
+  return {
+    id: task.id,
+    list_id: task.list_id,
+    title: task.title,
+    description: task.description ?? undefined,
+    status: task.status as Task['status'],
+    priority: task.priority as Task['priority'],
+    assignee_id: assigneeIds[0],
+    assignee: assignees[0],
+    assignee_ids: assigneeIds,
+    assignees,
+    time_estimate_minutes: task.time_estimate_minutes ?? undefined,
+    position: task.position,
+    due_date: task.due_date ?? undefined,
+    completed_at: task.completed_at ?? undefined,
+    created_at: task.created_at,
+    subtasks: (task.subtasks ?? []).map((subtask: { id: string; task_id: string; title: string; is_complete: boolean; position: number }) => ({
+      id: subtask.id,
+      task_id: subtask.task_id,
+      title: subtask.title,
+      is_complete: subtask.is_complete,
+      position: subtask.position,
+    })),
+  }
+}
+
 export function formatMinutes(minutes: number | undefined | null): string {
   if (!minutes || minutes <= 0) return '0min'
   const h = Math.floor(minutes / 60)
@@ -17,12 +110,7 @@ export function formatMinutes(minutes: number | undefined | null): string {
 export async function getProfiles(): Promise<Profile[]> {
   const supabase = createClient()
   const { data } = await supabase.from('profiles').select('*').order('full_name', { ascending: true })
-  return (data ?? []).map((p) => ({
-    id: p.id,
-    full_name: p.full_name ?? undefined,
-    email: p.email ?? '',
-    avatar_url: p.avatar_url ?? undefined,
-  }))
+  return (data ?? []).map((profile) => mapProfile(profile as ProfileRow))
 }
 
 // ---------------------------------------------------------------------------
@@ -33,44 +121,31 @@ export async function getLists(): Promise<List[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('lists')
-    .select('*, tasks(id, status, priority, time_estimate_minutes, assignee_id)')
+    .select('*, tasks(id, status, priority, time_estimate_minutes, task_assignees(user_id))')
     .eq('is_archived', false)
     .order('created_at', { ascending: true })
 
   if (error) throw error
 
   const listRows = data ?? []
-  const profileIds = Array.from(
-    new Set(
-      listRows.flatMap((list) => [
-        list.assignee_id,
-        ...((list.tasks ?? []).map((task: { assignee_id: string | null }) => task.assignee_id)),
-      ]).filter(Boolean)
-    )
-  ) as string[]
+  const profileIds = uniqueIds(
+    listRows.flatMap((list) => [
+      list.assignee_id,
+      ...((list.tasks ?? []).flatMap((task: { task_assignees?: Array<{ user_id: string | null }> }) =>
+        (task.task_assignees ?? []).map((assignment) => assignment.user_id)
+      )),
+    ])
+  )
 
-  let profileMap: Record<string, Profile> = {}
-  if (profileIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', profileIds)
-
-    profileMap = Object.fromEntries(
-      (profiles ?? []).map((p) => [
-        p.id,
-        {
-          id: p.id,
-          full_name: p.full_name ?? undefined,
-          email: p.email ?? '',
-          avatar_url: p.avatar_url ?? undefined,
-        },
-      ])
-    )
-  }
+  const profileMap = await getProfilesByIds(supabase, profileIds)
 
   return listRows.map((l) => {
-    const tasks: { status: string; priority: string; time_estimate_minutes: number | null; assignee_id: string | null }[] = l.tasks ?? []
+    const tasks: {
+      status: string
+      priority: string
+      time_estimate_minutes: number | null
+      task_assignees?: Array<{ user_id: string | null }>
+    }[] = l.tasks ?? []
     const pending = tasks.filter((t) => t.status !== 'done').length
     const estimate = tasks
       .filter((t) => t.status !== 'done')
@@ -78,7 +153,7 @@ export async function getLists(): Promise<List[]> {
     const hasHighPriority = tasks.some((t) => t.priority === 'high' && t.status !== 'done')
     const seen = new Set<string>()
     const members = tasks
-      .map((task) => task.assignee_id)
+      .flatMap((task) => (task.task_assignees ?? []).map((assignment) => assignment.user_id))
       .filter((assigneeId): assigneeId is string => {
         if (!assigneeId || seen.has(assigneeId)) return false
         seen.add(assigneeId)
@@ -196,8 +271,8 @@ export async function getMyStats(userId: string): Promise<{ pending: number; min
   const supabase = createClient()
   const { data } = await supabase
     .from('tasks')
-    .select('time_estimate_minutes')
-    .eq('assignee_id', userId)
+    .select('time_estimate_minutes, task_assignees!inner(user_id)')
+    .eq('task_assignees.user_id', userId)
     .neq('status', 'done')
 
   const tasks = data ?? []
@@ -216,7 +291,7 @@ export async function getTasks(listId?: string): Promise<Task[]> {
 
   let query = supabase
     .from('tasks')
-    .select('*, subtasks(*)')
+    .select('*, subtasks(*), task_assignees(user_id)')
     .order('position', { ascending: true })
 
   if (listId && listId !== 'all') {
@@ -229,64 +304,69 @@ export async function getTasks(listId?: string): Promise<Task[]> {
   const tasks = data ?? []
 
   // Fetch profiles for assignees in one query
-  const assigneeIds = Array.from(new Set(tasks.map((t) => t.assignee_id).filter(Boolean))) as string[]
-  let profileMap: Record<string, Profile> = {}
-  if (assigneeIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', assigneeIds)
-    profileMap = Object.fromEntries(
-      (profiles ?? []).map((p) => [p.id, { id: p.id, full_name: p.full_name ?? undefined, email: p.email ?? '', avatar_url: p.avatar_url ?? undefined }])
-    )
-  }
+  const assigneeIds = uniqueIds(
+    tasks.flatMap((task) => (task.task_assignees ?? []).map((assignment: { user_id: string | null }) => assignment.user_id))
+  )
+  const profileMap = await getProfilesByIds(supabase, assigneeIds)
 
-  return tasks.map((t) => ({
-    id: t.id,
-    list_id: t.list_id,
-    title: t.title,
-    description: t.description ?? undefined,
-    status: t.status as Task['status'],
-    priority: t.priority as Task['priority'],
-    assignee_id: t.assignee_id ?? undefined,
-    assignee: t.assignee_id ? profileMap[t.assignee_id] : undefined,
-    time_estimate_minutes: t.time_estimate_minutes ?? undefined,
-    position: t.position,
-    due_date: t.due_date ?? undefined,
-    completed_at: t.completed_at ?? undefined,
-    created_at: t.created_at,
-    subtasks: (t.subtasks ?? []).map((s: { id: string; task_id: string; title: string; is_complete: boolean; position: number }) => ({
-      id: s.id,
-      task_id: s.task_id,
-      title: s.title,
-      is_complete: s.is_complete,
-      position: s.position,
-    })),
-  }))
+  return tasks.map((t) => {
+    const taskAssigneeIds = uniqueIds((t.task_assignees ?? []).map((assignment: { user_id: string | null }) => assignment.user_id))
+    const taskAssignees = taskAssigneeIds
+      .map((assigneeId) => profileMap[assigneeId])
+      .filter((profile): profile is Profile => Boolean(profile))
+
+    return {
+      id: t.id,
+      list_id: t.list_id,
+      title: t.title,
+      description: t.description ?? undefined,
+      status: t.status as Task['status'],
+      priority: t.priority as Task['priority'],
+      assignee_id: taskAssigneeIds[0] ?? undefined,
+      assignee: taskAssignees[0],
+      assignee_ids: taskAssigneeIds,
+      assignees: taskAssignees,
+      time_estimate_minutes: t.time_estimate_minutes ?? undefined,
+      position: t.position,
+      due_date: t.due_date ?? undefined,
+      completed_at: t.completed_at ?? undefined,
+      created_at: t.created_at,
+      subtasks: (t.subtasks ?? []).map((s: { id: string; task_id: string; title: string; is_complete: boolean; position: number }) => ({
+        id: s.id,
+        task_id: s.task_id,
+        title: s.title,
+        is_complete: s.is_complete,
+        position: s.position,
+      })),
+    }
+  })
 }
 
 export async function createTask(data: {
   list_id: string
   title: string
   status: Task['status']
-  assignee_id?: string
+  assignee_ids?: string[]
   time_estimate_minutes?: number
 }): Promise<Task> {
   const supabase = createClient()
+  const assigneeIds = uniqueIds(data.assignee_ids ?? [])
   const { data: task, error } = await supabase
     .from('tasks')
-    .insert(data)
+    .insert({
+      list_id: data.list_id,
+      title: data.title,
+      status: data.status,
+      assignee_id: assigneeIds[0] ?? null,
+      time_estimate_minutes: data.time_estimate_minutes,
+    })
     .select()
     .single()
 
   if (error) throw error
-  return {
-    ...task,
-    status: task.status as Task['status'],
-    priority: task.priority as Task['priority'],
-    assignee_id: task.assignee_id ?? undefined,
-    subtasks: [],
-  }
+
+  await syncTaskAssignees(supabase, task.id, assigneeIds)
+  return fetchTaskById(supabase, task.id)
 }
 
 export async function updateTask(
@@ -299,6 +379,16 @@ export async function updateTask(
   const dbPatch = { ...(patch as Record<string, unknown>) }
   delete dbPatch.subtasks
   delete dbPatch.assignee
+  delete dbPatch.assignees
+  delete dbPatch.assignee_ids
+
+  const assigneeIds = Object.prototype.hasOwnProperty.call(patch, 'assignee_ids')
+    ? uniqueIds(patch.assignee_ids ?? [])
+    : null
+
+  if (assigneeIds) {
+    dbPatch.assignee_id = assigneeIds[0] ?? null
+  }
 
   if (patch.status === 'done') {
     (dbPatch as Record<string, unknown>).completed_at = new Date().toISOString()
@@ -306,15 +396,20 @@ export async function updateTask(
     (dbPatch as Record<string, unknown>).completed_at = null
   }
 
-  const { data: task, error } = await supabase
+  const { error } = await supabase
     .from('tasks')
     .update(dbPatch)
     .eq('id', id)
-    .select('*, subtasks(*)')
+    .select('id')
     .single()
 
   if (error) throw error
-  return { ...task, status: task.status as Task['status'], priority: task.priority as Task['priority'], subtasks: task.subtasks ?? [] }
+
+  if (assigneeIds) {
+    await syncTaskAssignees(supabase, id, assigneeIds)
+  }
+
+  return fetchTaskById(supabase, id)
 }
 
 export async function deleteTask(id: string): Promise<void> {

@@ -162,9 +162,11 @@ export function TaskDetailModal({ task, listId, onClose }: TaskDetailModalProps)
           </div>
 
           <AssigneePicker
-            value={task.assignee_id}
-            onChange={(assignee_id) => {
-              updateTask.mutate({ id: task.id, patch: { assignee_id } });
+            multiple
+            values={task.assignee_ids ?? []}
+            onChange={() => {}}
+            onValuesChange={(assignee_ids) => {
+              updateTask.mutate({ id: task.id, patch: { assignee_ids } });
             }}
           />
 

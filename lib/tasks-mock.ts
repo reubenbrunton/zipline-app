@@ -101,6 +101,7 @@ let tasks: Task[] = [
     status: "today",
     priority: "high",
     assignee_id: "user-jordan",
+    assignee_ids: ["user-jordan", "user-maya"],
     time_estimate_minutes: 180,
     position: 1000,
     due_date: "2026-03-20",
@@ -113,6 +114,7 @@ let tasks: Task[] = [
     status: "this_week",
     priority: "medium",
     assignee_id: "user-maya",
+    assignee_ids: ["user-maya"],
     time_estimate_minutes: 90,
     position: 2000,
     created_at: new Date().toISOString(),
@@ -124,6 +126,7 @@ let tasks: Task[] = [
     status: "backlog",
     priority: "high",
     assignee_id: "user-jordan",
+    assignee_ids: ["user-jordan", "user-alex"],
     time_estimate_minutes: 30,
     position: 3000,
     created_at: new Date().toISOString(),
@@ -135,6 +138,7 @@ let tasks: Task[] = [
     status: "done",
     priority: "low",
     assignee_id: "user-alex",
+    assignee_ids: ["user-alex"],
     time_estimate_minutes: 60,
     position: 1000,
     completed_at: new Date().toISOString(),
@@ -147,6 +151,7 @@ let tasks: Task[] = [
     status: "today",
     priority: "medium",
     assignee_id: "user-maya",
+    assignee_ids: ["user-maya", "user-jordan"],
     time_estimate_minutes: 45,
     position: 2000,
     created_at: new Date().toISOString(),
@@ -169,6 +174,7 @@ let tasks: Task[] = [
     status: "backlog",
     priority: "medium",
     assignee_id: "user-alex",
+    assignee_ids: ["user-alex"],
     time_estimate_minutes: 120,
     position: 1000,
     created_at: new Date().toISOString(),
@@ -180,6 +186,7 @@ let tasks: Task[] = [
     status: "this_week",
     priority: "high",
     assignee_id: "user-jordan",
+    assignee_ids: ["user-jordan", "user-maya"],
     time_estimate_minutes: 60,
     position: 2000,
     due_date: "2026-03-18",
@@ -192,6 +199,7 @@ let tasks: Task[] = [
     status: "done",
     priority: "low",
     assignee_id: "user-maya",
+    assignee_ids: ["user-maya"],
     time_estimate_minutes: 90,
     position: 3000,
     completed_at: new Date().toISOString(),
@@ -204,6 +212,7 @@ let tasks: Task[] = [
     status: "this_week",
     priority: "low",
     assignee_id: "user-jordan",
+    assignee_ids: ["user-jordan"],
     time_estimate_minutes: 15,
     position: 1000,
     created_at: new Date().toISOString(),
@@ -215,6 +224,7 @@ let tasks: Task[] = [
     status: "backlog",
     priority: "medium",
     assignee_id: "user-jordan",
+    assignee_ids: ["user-jordan"],
     time_estimate_minutes: 10,
     position: 2000,
     created_at: new Date().toISOString(),
@@ -226,6 +236,7 @@ let tasks: Task[] = [
     status: "backlog",
     priority: "low",
     assignee_id: "user-jordan",
+    assignee_ids: ["user-jordan", "user-alex"],
     time_estimate_minutes: 60,
     position: 1000,
     created_at: new Date().toISOString(),
@@ -244,6 +255,11 @@ let subtasks: Subtask[] = [
 // Computed helpers
 // ---------------------------------------------------------------------------
 
+function normalizeAssigneeIds(task: Task): string[] {
+  const ids = task.assignee_ids ?? (task.assignee_id ? [task.assignee_id] : [])
+  return Array.from(new Set(ids.filter(Boolean)))
+}
+
 function computeListStats(list: List): List {
   const listTasks = tasks.filter((t) => t.list_id === list.id);
   const pending = listTasks.filter((t) => t.status !== "done").length;
@@ -253,7 +269,7 @@ function computeListStats(list: List): List {
   const hasHighPriority = listTasks.some((t) => t.priority === "high" && t.status !== "done");
   const seen = new Set<string>();
   const assigneeIds = listTasks
-    .map((t) => t.assignee_id)
+    .flatMap((task) => normalizeAssigneeIds(task))
     .filter((id): id is string => {
       if (!id || seen.has(id)) return false;
       seen.add(id);
@@ -341,10 +357,10 @@ export async function archiveList(id: string): Promise<List> {
 
 export async function getMyStats(userId: string): Promise<{ pending: number; minutes: number }> {
   await delay(80);
-  const myTasks = tasks.filter((t) => t.assignee_id === userId && t.status !== "done");
+  const myAssignedTasks = tasks.filter((task) => normalizeAssigneeIds(task).includes(userId) && task.status !== "done");
   return {
-    pending: myTasks.length,
-    minutes: myTasks.reduce((sum, t) => sum + (t.time_estimate_minutes ?? 0), 0),
+    pending: myAssignedTasks.length,
+    minutes: myAssignedTasks.reduce((sum, task) => sum + (task.time_estimate_minutes ?? 0), 0),
   };
 }
 
@@ -360,7 +376,12 @@ export async function getTasks(listId?: string): Promise<Task[]> {
   const withSubs = filtered.map((t) => ({
     ...t,
     subtasks: subtasks.filter((s) => s.task_id === t.id),
-    assignee: t.assignee_id ? profiles.find((p) => p.id === t.assignee_id) : undefined,
+    assignee_id: normalizeAssigneeIds(t)[0],
+    assignee: normalizeAssigneeIds(t)[0] ? profiles.find((p) => p.id === normalizeAssigneeIds(t)[0]) : undefined,
+    assignee_ids: normalizeAssigneeIds(t),
+    assignees: normalizeAssigneeIds(t)
+      .map((assigneeId) => profiles.find((profile) => profile.id === assigneeId))
+      .filter((profile): profile is Profile => Boolean(profile)),
   }));
   return delay(withSubs);
 }
@@ -369,16 +390,18 @@ export async function createTask(data: {
   list_id: string;
   title: string;
   status: Task["status"];
-  assignee_id?: string;
+  assignee_ids?: string[];
   time_estimate_minutes?: number;
 }): Promise<Task> {
+  const assigneeIds = Array.from(new Set((data.assignee_ids ?? []).filter(Boolean)));
   const task: Task = {
     id: uid(),
     list_id: data.list_id,
     title: data.title,
     status: data.status,
     priority: "medium",
-    assignee_id: data.assignee_id,
+    assignee_id: assigneeIds[0],
+    assignee_ids: assigneeIds,
     time_estimate_minutes: data.time_estimate_minutes,
     position: (tasks.filter((t) => t.list_id === data.list_id).length + 1) * 1000,
     created_at: new Date().toISOString(),
@@ -395,6 +418,10 @@ export async function updateTask(
   tasks = tasks.map((t) => {
     if (t.id !== id) return t;
     const updated = { ...t, ...patch };
+    if (Object.prototype.hasOwnProperty.call(patch, "assignee_ids")) {
+      updated.assignee_ids = Array.from(new Set((patch.assignee_ids ?? []).filter(Boolean)));
+      updated.assignee_id = updated.assignee_ids[0];
+    }
     if (patch.status === "done" && !t.completed_at) {
       updated.completed_at = new Date().toISOString();
     }
@@ -404,7 +431,17 @@ export async function updateTask(
     return updated;
   });
   const found = tasks.find((t) => t.id === id)!;
-  return delay({ ...found, subtasks: subtasks.filter((s) => s.task_id === id) });
+  const assigneeIds = normalizeAssigneeIds(found);
+  return delay({
+    ...found,
+    assignee_id: assigneeIds[0],
+    assignee: assigneeIds[0] ? profiles.find((profile) => profile.id === assigneeIds[0]) : undefined,
+    assignee_ids: assigneeIds,
+    assignees: assigneeIds
+      .map((assigneeId) => profiles.find((profile) => profile.id === assigneeId))
+      .filter((profile): profile is Profile => Boolean(profile)),
+    subtasks: subtasks.filter((s) => s.task_id === id),
+  });
 }
 
 export async function deleteTask(id: string): Promise<void> {
