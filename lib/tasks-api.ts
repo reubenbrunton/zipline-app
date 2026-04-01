@@ -181,7 +181,7 @@ export async function getTasks(listId?: string): Promise<Task[]> {
   const tasks = data ?? []
 
   // Fetch profiles for assignees in one query
-  const assigneeIds = [...new Set(tasks.map((t) => t.assignee_id).filter(Boolean))] as string[]
+  const assigneeIds = Array.from(new Set(tasks.map((t) => t.assignee_id).filter(Boolean))) as string[]
   let profileMap: Record<string, Profile> = {}
   if (assigneeIds.length > 0) {
     const { data: profiles } = await supabase
