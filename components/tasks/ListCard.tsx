@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Plus, MoreHorizontal, Archive, LayoutGrid } from "lucide-react";
-import { formatMinutes } from "@/lib/tasks-mock";
+import { formatMinutes } from "@/lib/tasks-api";
 import { useArchiveList } from "@/hooks/tasks";
 import {
   DropdownMenu,

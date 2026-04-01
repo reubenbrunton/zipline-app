@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { archiveList } from "@/lib/tasks-mock";
+import { archiveList } from "@/lib/tasks-api";
 
 export function useArchiveList() {
   const queryClient = useQueryClient();

@@ -15,7 +15,7 @@ import {
 } from "@dnd-kit/core";
 import { Search, LayoutGrid, ChevronDown, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatMinutes } from "@/lib/tasks-mock";
+import { formatMinutes } from "@/lib/tasks-api";
 import { useTasks, useLists, useUpdateTask } from "@/hooks/tasks";
 import { KanbanColumn } from "@/components/tasks/KanbanColumn";
 import { TaskCard } from "@/components/tasks/TaskCard";

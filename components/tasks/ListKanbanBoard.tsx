@@ -12,8 +12,9 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { Plus } from "lucide-react";
-import { formatMinutes } from "@/lib/tasks-mock";
+import { formatMinutes } from "@/lib/tasks-api";
 import { useLists, useUpdateList, useMyStats } from "@/hooks/tasks";
+import { useUser } from "@/hooks/useUser";
 import { ListKanbanColumn } from "./ListKanbanColumn";
 import { ListKanbanCard } from "./ListKanbanCard";
 import { CreateListModal } from "./CreateListModal";
@@ -39,7 +40,8 @@ function getGreeting(): string {
 export function ListKanbanBoard() {
   const { data: lists = [], isLoading } = useLists();
   const updateList = useUpdateList();
-  const { data: myStats } = useMyStats("user-jordan");
+  const { data: myStats } = useMyStats();
+  const { data: user } = useUser();
   const [activeList, setActiveList] = useState<List | null>(null);
   const [createStage, setCreateStage] = useState<ListStage | null>(null);
   const [editingList, setEditingList] = useState<List | null>(null);
@@ -82,7 +84,7 @@ export function ListKanbanBoard() {
       {/* Greeting header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-white">{getGreeting()}, Reuben</h1>
+          <h1 className="text-2xl font-bold text-white">{getGreeting()}, {user?.full_name?.split(' ')[0] ?? 'there'}</h1>
           <p className="text-sm text-[#8888AA] mt-1">
             {totalPending > 0 ? (
               <>

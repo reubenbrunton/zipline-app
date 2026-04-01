@@ -6,7 +6,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { AlertCircle, Clock, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatMinutes } from "@/lib/tasks-mock";
+import { formatMinutes } from "@/lib/tasks-api";
 import { useArchiveList } from "@/hooks/tasks";
 import type { List, Profile } from "@/types/tasks";
 

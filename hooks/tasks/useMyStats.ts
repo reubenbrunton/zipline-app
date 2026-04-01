@@ -1,9 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { getMyStats } from "@/lib/tasks-mock";
+import { getMyStats } from "@/lib/tasks-api";
+import { createClient } from "@/lib/supabase/client";
 
-export function useMyStats(userId: string) {
+export function useMyStats() {
   return useQuery({
-    queryKey: ["myStats", userId],
-    queryFn: () => getMyStats(userId),
+    queryKey: ["myStats"],
+    queryFn: async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { pending: 0, minutes: 0 };
+      return getMyStats(user.id);
+    },
   });
 }

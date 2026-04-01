@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createList } from "@/lib/tasks-mock";
+import { createList } from "@/lib/tasks-api";
 import type { List, ListStage } from "@/types/tasks";
 
 export function useCreateList() {

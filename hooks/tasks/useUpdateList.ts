@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateList } from "@/lib/tasks-mock";
+import { updateList } from "@/lib/tasks-api";
 import type { List } from "@/types/tasks";
 
 type UpdateListVars = {

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteTask } from "@/lib/tasks-mock";
+import { deleteTask } from "@/lib/tasks-api";
 import type { Task } from "@/types/tasks";
 
 export function useDeleteTask() {

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { createSubtask, updateSubtask, deleteSubtask } from "@/lib/tasks-mock";
+import { createSubtask, updateSubtask, deleteSubtask } from "@/lib/tasks-api";
 import type { Task } from "@/types/tasks";
 
 export function useCreateSubtask(taskId: string, listId: string) {

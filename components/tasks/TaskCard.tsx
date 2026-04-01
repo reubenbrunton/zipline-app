@@ -5,7 +5,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { Clock, ChevronLeft, ChevronRight, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatMinutes } from "@/lib/tasks-mock";
+import { formatMinutes } from "@/lib/tasks-api";
 import { useUpdateTask, useDeleteTask, useUpdateSubtask } from "@/hooks/tasks";
 import type { Task, TaskStatus, Priority } from "@/types/tasks";
 

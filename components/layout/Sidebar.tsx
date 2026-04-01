@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useUser } from "@/hooks/useUser";
+import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -56,6 +58,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [expanded, setExpanded] = useState<string | null>(null);
+  const { data: user } = useUser();
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   const toggleExpand = (href: string) => {
     setExpanded((prev) => (prev === href ? null : href));
@@ -280,26 +289,45 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className="p-3 flex-shrink-0">
         {collapsed ? (
           <div className="flex justify-center">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-pointer"
-              style={{ backgroundColor: "#FF4533" }}
-            >
-              RB
-            </div>
+            {user?.avatar_url ? (
+              <img
+                src={user.avatar_url}
+                alt={user.full_name}
+                className="w-8 h-8 rounded-full object-cover cursor-pointer"
+              />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white cursor-pointer"
+                style={{ backgroundColor: "#FF4533" }}
+              >
+                {user?.initials ?? "?"}
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex items-center gap-2.5">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
-              style={{ backgroundColor: "#FF4533" }}
-            >
-              RB
-            </div>
+            {user?.avatar_url ? (
+              <img
+                src={user.avatar_url}
+                alt={user.full_name}
+                className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+              />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                style={{ backgroundColor: "#FF4533" }}
+              >
+                {user?.initials ?? "?"}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">Reuben Brunton</p>
-              <p className="text-xs text-white/40 truncate">Creative Director</p>
+              <p className="text-sm font-semibold text-white truncate">{user?.full_name ?? "Loading..."}</p>
+              <p className="text-xs text-white/40 truncate">{user?.email ?? ""}</p>
             </div>
-            <button className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0">
+            <button
+              onClick={handleSignOut}
+              className="text-white/30 hover:text-white/70 transition-colors flex-shrink-0"
+            >
               <LogOut className="h-4 w-4" />
             </button>
           </div>
