@@ -221,8 +221,10 @@ export default function TeamPage() {
                     </div>
                   )}
                   <div className="w-full">
-                    <h3 className="text-sm font-semibold text-white">{member.full_name ?? "Unknown"}</h3>
-                    {isSelf && <span className="text-[10px] text-[#8888AA]">You</span>}
+                    <div className="flex items-center justify-center gap-2">
+                      <h3 className="text-sm font-semibold text-white">{member.full_name ?? "Unknown"}</h3>
+                      {isSelf && <span className="text-[10px] text-[#8888AA]">You</span>}
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1 w-full">
                     {member.email && (

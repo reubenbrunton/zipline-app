@@ -47,7 +47,10 @@ export async function POST(req: NextRequest) {
     email: email.trim().toLowerCase(),
     password,
     email_confirm: true,
-    user_metadata: { full_name: full_name.trim() },
+    user_metadata: {
+      full_name: full_name.trim(),
+      phone: phone?.trim() || null,
+    },
   });
 
   if (createError) {
@@ -55,7 +58,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Upsert their profile
-  await admin.from("profiles").upsert({
+  const { error: profileError } = await admin.from("profiles").upsert({
     id: user!.id,
     full_name: full_name.trim(),
     email: email.trim().toLowerCase(),
@@ -63,10 +66,20 @@ export async function POST(req: NextRequest) {
     updated_at: new Date().toISOString(),
   });
 
+  if (profileError) {
+    await admin.auth.admin.deleteUser(user!.id);
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+
   // Add to allowed_emails whitelist
-  await admin.from("allowed_emails").upsert({
+  const { error: allowedEmailError } = await admin.from("allowed_emails").upsert({
     email: email.trim().toLowerCase(),
   });
+
+  if (allowedEmailError) {
+    await admin.auth.admin.deleteUser(user!.id);
+    return NextResponse.json({ error: allowedEmailError.message }, { status: 500 });
+  }
 
   return NextResponse.json({ email: email.trim().toLowerCase(), password });
 }
