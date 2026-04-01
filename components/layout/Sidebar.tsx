@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useUser } from "@/hooks/useUser";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -53,10 +54,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const router = useRouter();
   const [expanded, setExpanded] = useState<string | null>(null);
   const { data: user } = useUser();
+  const queryClient = useQueryClient();
 
   const handleSignOut = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    queryClient.clear();
     router.push("/login");
   };
 
