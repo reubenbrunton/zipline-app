@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useProfiles } from "@/hooks/tasks";
 import { AssigneeAvatar } from "./AssigneeAvatar";
@@ -24,13 +25,20 @@ export function AssigneePicker({
   multiple = false,
 }: AssigneePickerProps) {
   const { data: profiles = [], isLoading } = useProfiles();
-  const selectedValues = multiple ? values ?? [] : value ? [value] : [];
+  const [localValues, setLocalValues] = useState<string[]>(multiple ? values ?? [] : value ? [value] : []);
+
+  useEffect(() => {
+    setLocalValues(multiple ? values ?? [] : value ? [value] : []);
+  }, [multiple, value, values]);
+
+  const selectedValues = localValues;
 
   function toggleValue(profileId: string) {
     if (!multiple || !onValuesChange) return;
     const nextValues = selectedValues.includes(profileId)
       ? selectedValues.filter((id) => id !== profileId)
       : [...selectedValues, profileId];
+    setLocalValues(nextValues);
     onValuesChange(nextValues);
   }
 
@@ -63,7 +71,14 @@ export function AssigneePicker({
       <div className="space-y-2">
         <button
           type="button"
-          onClick={() => (multiple ? onValuesChange?.([]) : onChange(undefined))}
+          onClick={() => {
+            if (multiple) {
+              setLocalValues([]);
+              onValuesChange?.([]);
+              return;
+            }
+            onChange(undefined);
+          }}
           className={cn(
             "w-full flex items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
             selectedValues.length === 0

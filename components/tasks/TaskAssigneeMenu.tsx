@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfiles } from "@/hooks/tasks";
@@ -61,7 +62,13 @@ export function TaskAssigneeMenu({
   disabled = false,
 }: TaskAssigneeMenuProps) {
   const { data: profiles = [], isLoading } = useProfiles();
-  const normalizedIds = uniqueIds(assigneeIds);
+  const [localIds, setLocalIds] = useState<string[]>(uniqueIds(assigneeIds));
+
+  useEffect(() => {
+    setLocalIds(uniqueIds(assigneeIds));
+  }, [assigneeIds]);
+
+  const normalizedIds = localIds;
   const selectedProfiles = normalizedIds
     .map((assigneeId) => profiles.find((profile) => profile.id === assigneeId))
     .filter((profile): profile is Profile => Boolean(profile));
@@ -70,6 +77,7 @@ export function TaskAssigneeMenu({
     const nextIds = normalizedIds.includes(profileId)
       ? normalizedIds.filter((id) => id !== profileId)
       : [...normalizedIds, profileId];
+    setLocalIds(nextIds);
     onChange(nextIds);
   }
 
@@ -118,6 +126,7 @@ export function TaskAssigneeMenu({
         <DropdownMenuItem
           onSelect={(event) => {
             event.preventDefault();
+            setLocalIds([]);
             onChange([]);
           }}
         >
