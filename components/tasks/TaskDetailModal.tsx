@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useUpdateTask, useCreateSubtask, useUpdateSubtask, useDeleteSubtask } from "@/hooks/tasks";
 import type { Task, TaskStatus, Priority, Subtask } from "@/types/tasks";
+import { AssigneePicker } from "./AssigneePicker";
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: "backlog", label: "Backlog" },
@@ -159,6 +160,13 @@ export function TaskDetailModal({ task, listId, onClose }: TaskDetailModalProps)
               ))}
             </div>
           </div>
+
+          <AssigneePicker
+            value={task.assignee_id}
+            onChange={(assignee_id) => {
+              updateTask.mutate({ id: task.id, patch: { assignee_id } });
+            }}
+          />
 
           {/* Time estimate */}
           <div>

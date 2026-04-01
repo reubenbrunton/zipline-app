@@ -21,6 +21,7 @@ export function useUpdateTask() {
                 ? {
                     ...t,
                     ...patch,
+                    assignee: Object.prototype.hasOwnProperty.call(patch, "assignee_id") ? undefined : t.assignee,
                     completed_at:
                       patch.status === "done"
                         ? t.completed_at ?? new Date().toISOString()

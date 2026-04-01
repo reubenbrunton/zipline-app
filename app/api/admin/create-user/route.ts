@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient, requireTeamOwner } from "../_utils";
 
 function generatePassword(): string {
   const upper = "ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -23,6 +23,9 @@ function generatePassword(): string {
 }
 
 export async function POST(req: NextRequest) {
+  const { errorResponse } = await requireTeamOwner();
+  if (errorResponse) return errorResponse;
+
   const { full_name, email, phone } = await req.json();
 
   if (!full_name?.trim() || !email?.trim()) {
@@ -36,9 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Server misconfiguration: missing Supabase service role key." }, { status: 500 });
   }
 
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  const admin = createAdminClient();
 
   const password = generatePassword();
 

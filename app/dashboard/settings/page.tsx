@@ -50,6 +50,7 @@ export default function SettingsPage() {
 
   const refreshProfileQueries = () => {
     queryClient.invalidateQueries({ queryKey: ["user"] });
+    queryClient.invalidateQueries({ queryKey: ["profiles"] });
     queryClient.invalidateQueries({ queryKey: ["team-members"] });
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
     queryClient.invalidateQueries({ queryKey: ["lists"] });

@@ -20,6 +20,7 @@ import { useTasks, useLists, useUpdateTask } from "@/hooks/tasks";
 import { KanbanColumn } from "@/components/tasks/KanbanColumn";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { TaskDetailModal } from "@/components/tasks/TaskDetailModal";
+import { AssigneeAvatar } from "@/components/tasks/AssigneeAvatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -177,6 +178,14 @@ export default function BoardPage() {
                 ? "Aggregated view across all lists"
                 : "All tasks complete"}
             </p>
+            {!isAllView && currentList?.assignee && (
+              <div className="mt-2 flex items-center gap-2">
+                <AssigneeAvatar profile={currentList.assignee} size="xs" />
+                <span className="text-xs text-white/70">
+                  {currentList.assignee.full_name ?? currentList.assignee.email}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

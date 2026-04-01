@@ -8,3 +8,4 @@ export { useArchiveList } from "./useArchiveList";
 export { useCreateSubtask, useUpdateSubtask, useDeleteSubtask } from "./useSubtaskMutations";
 export { useUpdateList } from "./useUpdateList";
 export { useMyStats } from "./useMyStats";
+export { useProfiles } from "./useProfiles";

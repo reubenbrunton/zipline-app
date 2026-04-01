@@ -17,6 +17,7 @@ export function useCreateTask() {
         title: newTask.title,
         status: newTask.status,
         priority: "medium",
+        assignee_id: newTask.assignee_id,
         time_estimate_minutes: newTask.time_estimate_minutes,
         position: 9999,
         created_at: new Date().toISOString(),

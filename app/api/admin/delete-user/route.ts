@@ -1,15 +1,14 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient, requireTeamOwner } from "../_utils";
 
 export async function POST(req: NextRequest) {
+  const { errorResponse } = await requireTeamOwner();
+  if (errorResponse) return errorResponse;
+
   const { user_id } = await req.json();
   if (!user_id) return NextResponse.json({ error: "user_id required" }, { status: 400 });
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  const admin = createAdminClient();
 
   const { error } = await admin.auth.admin.deleteUser(user_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

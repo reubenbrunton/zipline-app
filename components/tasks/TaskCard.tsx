@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatMinutes } from "@/lib/tasks-api";
 import { useUpdateTask, useDeleteTask, useUpdateSubtask } from "@/hooks/tasks";
 import type { Task, TaskStatus, Priority } from "@/types/tasks";
+import { AssigneeAvatar } from "./AssigneeAvatar";
 
 const STATUS_ORDER: TaskStatus[] = ["backlog", "this_week", "today", "done"];
 
@@ -16,30 +17,6 @@ const PRIORITY_COLORS = {
   medium: "bg-amber-400",
   low: "bg-gray-500",
 };
-
-const AVATAR_COLORS = [
-  "bg-violet-500/80",
-  "bg-sky-500/80",
-  "bg-emerald-500/80",
-  "bg-amber-500/80",
-  "bg-rose-500/80",
-  "bg-indigo-500/80",
-];
-
-function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-function getAvatarColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
 
 interface TaskCardProps {
   task: Task;
@@ -249,22 +226,7 @@ export function TaskCard({ task, listId, onClick, isOverlay, className }: TaskCa
         {/* Assignee avatar */}
         {task.assignee && (
           <div className="ml-auto flex-shrink-0" title={task.assignee.full_name ?? task.assignee.email}>
-            {task.assignee.avatar_url ? (
-              <img
-                src={task.assignee.avatar_url}
-                alt={task.assignee.full_name ?? ""}
-                className="w-5 h-5 rounded-full object-cover ring-1 ring-white/10"
-              />
-            ) : (
-              <div
-                className={cn(
-                  "w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white ring-1 ring-white/10",
-                  getAvatarColor(task.assignee.full_name ?? task.assignee.email)
-                )}
-              >
-                {getInitials(task.assignee.full_name ?? task.assignee.email)}
-              </div>
-            )}
+            <AssigneeAvatar profile={task.assignee} size="xs" />
           </div>
         )}
       </div>

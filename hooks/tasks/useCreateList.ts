@@ -16,6 +16,8 @@ export function useCreateList() {
           id: "temp-" + Date.now(),
           name: newList.name,
           color: newList.color,
+          assignee_id: newList.assignee_id,
+          assignee: undefined,
           client_contact_id: newList.client_contact_id,
           client_name: newList.client_name,
           icon_url: newList.icon_url,

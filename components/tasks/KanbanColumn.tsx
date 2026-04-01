@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { TaskCard } from "./TaskCard";
 import { useCreateTask } from "@/hooks/tasks";
 import type { Task, TaskStatus } from "@/types/tasks";
+import { AssigneePicker } from "./AssigneePicker";
 
 const COLUMN_CONFIG: Record<
   TaskStatus,
@@ -48,6 +49,7 @@ export function KanbanColumn({ status, tasks, listId, onTaskClick, droppedTask }
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newEstimate, setNewEstimate] = useState("");
+  const [newAssigneeId, setNewAssigneeId] = useState<string | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const createTask = useCreateTask();
@@ -68,12 +70,14 @@ export function KanbanColumn({ status, tasks, listId, onTaskClick, droppedTask }
         list_id: listId,
         title: newTitle.trim(),
         status,
+        assignee_id: newAssigneeId,
         time_estimate_minutes: newEstimate ? parseInt(newEstimate) : undefined,
       },
       {
         onSuccess: () => {
           setNewTitle("");
           setNewEstimate("");
+          setNewAssigneeId(undefined);
           setShowAddForm(false);
         },
       }
@@ -88,6 +92,7 @@ export function KanbanColumn({ status, tasks, listId, onTaskClick, droppedTask }
     if (e.key === "Escape") {
       setNewTitle("");
       setNewEstimate("");
+      setNewAssigneeId(undefined);
       setShowAddForm(false);
     }
   }
@@ -197,6 +202,7 @@ export function KanbanColumn({ status, tasks, listId, onTaskClick, droppedTask }
                 className="w-full bg-transparent text-sm text-white placeholder:text-[#8888AA] focus:outline-none mb-2"
               />
               <div className="flex items-center gap-2">
+                <AssigneePicker compact value={newAssigneeId} onChange={setNewAssigneeId} />
                 <input
                   type="number"
                   value={newEstimate}
@@ -216,6 +222,7 @@ export function KanbanColumn({ status, tasks, listId, onTaskClick, droppedTask }
                   onClick={() => {
                     setNewTitle("");
                     setNewEstimate("");
+                    setNewAssigneeId(undefined);
                     setShowAddForm(false);
                   }}
                   className="px-2 py-1 rounded-lg text-xs text-white/40 hover:text-white/70 transition-colors"

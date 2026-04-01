@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Mail, Phone, X, Check, Copy, Loader2, MoreHorizontal, KeyRound, Trash2 } from "lucide-react";
+import { Plus, Mail, Phone, X, Check, Copy, Loader2, MoreHorizontal, KeyRound, Trash2, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/hooks/useUser";
+import { TEAM_OWNER_EMAIL, isTeamOwnerEmail } from "@/lib/team-admin";
 
 interface TeamMember {
   id: string;
@@ -13,6 +14,12 @@ interface TeamMember {
   email: string | null;
   avatar_url: string | null;
   phone: string | null;
+}
+
+interface MemberFormState {
+  full_name: string;
+  email: string;
+  phone: string;
 }
 
 function getColor(id: string): string {
@@ -51,6 +58,7 @@ function CopyButton({ value }: { value: string }) {
 export default function TeamPage() {
   const queryClient = useQueryClient();
   const { data: currentUser } = useUser();
+  const canManageMembers = isTeamOwnerEmail(currentUser?.email);
 
   // New member wizard
   const [showWizard, setShowWizard] = useState(false);
@@ -64,6 +72,10 @@ export default function TeamPage() {
   const [resetTarget, setResetTarget] = useState<TeamMember | null>(null);
   const [resetStep, setResetStep] = useState<"loading" | "done">("loading");
   const [newPassword, setNewPassword] = useState("");
+  const [editTarget, setEditTarget] = useState<TeamMember | null>(null);
+  const [editForm, setEditForm] = useState<MemberFormState>({ full_name: "", email: "", phone: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<TeamMember | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -82,11 +94,32 @@ export default function TeamPage() {
   });
 
   function openWizard() {
+    if (!canManageMembers) return;
     setForm({ full_name: "", email: "", phone: "" });
     setWizardError("");
     setStep("form");
     setCredentials(null);
     setShowWizard(true);
+  }
+
+  function openEdit(member: TeamMember) {
+    if (!canManageMembers) return;
+    setMenuOpen(null);
+    setEditTarget(member);
+    setEditForm({
+      full_name: member.full_name ?? "",
+      email: member.email ?? "",
+      phone: member.phone ?? "",
+    });
+    setEditError("");
+  }
+
+  function refreshMemberQueries() {
+    queryClient.invalidateQueries({ queryKey: ["profiles"] });
+    queryClient.invalidateQueries({ queryKey: ["user"] });
+    queryClient.invalidateQueries({ queryKey: ["team-members"] });
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    queryClient.invalidateQueries({ queryKey: ["lists"] });
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -103,10 +136,11 @@ export default function TeamPage() {
     if (!res.ok) { setWizardError(json.error ?? "Something went wrong."); setStep("form"); return; }
     setCredentials({ email: json.email, password: json.password });
     setStep("success");
-    queryClient.invalidateQueries({ queryKey: ["team-members"] });
+    refreshMemberQueries();
   }
 
   async function handleResetPassword(member: TeamMember) {
+    if (!canManageMembers) return;
     setMenuOpen(null);
     setResetTarget(member);
     setResetStep("loading");
@@ -123,7 +157,42 @@ export default function TeamPage() {
     setResetStep("done");
   }
 
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editTarget || !canManageMembers) return;
+    if (!editForm.full_name.trim() || !editForm.email.trim()) {
+      setEditError("Name and email are required.");
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError("");
+
+    const res = await fetch("/api/admin/update-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: editTarget.id,
+        full_name: editForm.full_name,
+        email: editForm.email,
+        phone: editForm.phone,
+      }),
+    });
+
+    const json = await res.json();
+    setSavingEdit(false);
+
+    if (!res.ok) {
+      setEditError(json.error ?? "Failed to update member.");
+      return;
+    }
+
+    setEditTarget(null);
+    refreshMemberQueries();
+  }
+
   async function handleDelete(member: TeamMember) {
+    if (!canManageMembers) return;
     setDeleting(true);
     setActionError("");
     const res = await fetch("/api/admin/delete-user", {
@@ -135,7 +204,7 @@ export default function TeamPage() {
     setDeleting(false);
     if (!res.ok) { setActionError(json.error ?? "Failed to remove user."); return; }
     setDeleteTarget(null);
-    queryClient.invalidateQueries({ queryKey: ["team-members"] });
+    refreshMemberQueries();
   }
 
   return (
@@ -153,10 +222,17 @@ export default function TeamPage() {
           <p className="text-sm text-[#8888AA] mt-0.5">
             {isLoading ? "Loading…" : queryError ? "Error loading members" : `${members.length} member${members.length !== 1 ? "s" : ""}`}
           </p>
+          {!canManageMembers && currentUser?.email && (
+            <p className="text-xs text-[#8888AA]/80 mt-1">
+              View only. Team access is managed by {TEAM_OWNER_EMAIL}.
+            </p>
+          )}
         </div>
-        <button onClick={openWizard} className="flex items-center gap-2 px-3 py-1.5 bg-[#FF4533] hover:bg-[#e03d2d] text-white text-xs font-semibold rounded-lg transition-colors">
-          <Plus className="h-3.5 w-3.5" />New Member
-        </button>
+        {canManageMembers && (
+          <button onClick={openWizard} className="flex items-center gap-2 px-3 py-1.5 bg-[#FF4533] hover:bg-[#e03d2d] text-white text-xs font-semibold rounded-lg transition-colors">
+            <Plus className="h-3.5 w-3.5" />New Member
+          </button>
+        )}
       </div>
 
       {actionError && (
@@ -173,10 +249,11 @@ export default function TeamPage() {
               const color = getColor(member.id);
               const initials = getInitials(member.full_name, member.email);
               const isSelf = member.id === currentUser?.id;
+              const showManagementMenu = canManageMembers;
               return (
                 <div key={member.id} className="relative rounded-xl border border-white/[0.07] bg-white/[0.07] backdrop-blur-xl p-5 flex flex-col items-center gap-3 text-center hover:bg-white/[0.10] transition-all duration-150">
                   {/* Three-dot menu */}
-                  {!isSelf && (
+                  {showManagementMenu && (
                     <div className="absolute top-3 right-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === member.id ? null : member.id); }}
@@ -195,18 +272,29 @@ export default function TeamPage() {
                             className="absolute right-0 top-8 z-20 w-44 rounded-xl border border-white/[0.1] bg-[#0D0D1A] shadow-xl overflow-hidden"
                           >
                             <button
-                              onClick={() => handleResetPassword(member)}
+                              onClick={() => openEdit(member)}
                               className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-white/70 hover:text-white hover:bg-white/[0.06] transition-colors"
                             >
-                              <KeyRound className="h-3.5 w-3.5" />Reset Password
+                              <Pencil className="h-3.5 w-3.5" />Edit Member
                             </button>
-                            <div className="h-px bg-white/[0.06]" />
-                            <button
-                              onClick={() => { setMenuOpen(null); setDeleteTarget(member); setActionError(""); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/[0.06] transition-colors"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />Remove Member
-                            </button>
+                            {!isSelf && (
+                              <>
+                                <div className="h-px bg-white/[0.06]" />
+                                <button
+                                  onClick={() => handleResetPassword(member)}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-white/70 hover:text-white hover:bg-white/[0.06] transition-colors"
+                                >
+                                  <KeyRound className="h-3.5 w-3.5" />Reset Password
+                                </button>
+                                <div className="h-px bg-white/[0.06]" />
+                                <button
+                                  onClick={() => { setMenuOpen(null); setDeleteTarget(member); setActionError(""); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/[0.06] transition-colors"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />Remove Member
+                                </button>
+                              </>
+                            )}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -258,15 +346,17 @@ export default function TeamPage() {
               );
             })}
 
-        <button onClick={openWizard} className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.01] p-5 flex flex-col items-center justify-center gap-3 hover:bg-white/[0.03] hover:border-white/20 transition-colors min-h-[220px]">
-          <div className="w-16 h-16 rounded-full bg-white/[0.05] flex items-center justify-center">
-            <Plus className="h-7 w-7 text-[#8888AA]" />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-white/60">New Member</p>
-            <p className="text-xs text-[#8888AA] mt-0.5">Generate login access</p>
-          </div>
-        </button>
+        {canManageMembers && (
+          <button onClick={openWizard} className="rounded-xl border border-dashed border-white/[0.1] bg-white/[0.01] p-5 flex flex-col items-center justify-center gap-3 hover:bg-white/[0.03] hover:border-white/20 transition-colors min-h-[220px]">
+            <div className="w-16 h-16 rounded-full bg-white/[0.05] flex items-center justify-center">
+              <Plus className="h-7 w-7 text-[#8888AA]" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-white/60">New Member</p>
+              <p className="text-xs text-[#8888AA] mt-0.5">Generate login access</p>
+            </div>
+          </button>
+        )}
       </div>
 
       {/* ── New member wizard ── */}
@@ -308,6 +398,57 @@ export default function TeamPage() {
                 <CredentialDisplay credentials={{ email: resetTarget.email ?? "", password: newPassword }} onDone={() => setResetTarget(null)} />
               </>
             )}
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* ── Edit member modal ── */}
+      <AnimatePresence>
+        {editTarget && (
+          <Modal onClose={() => !savingEdit && setEditTarget(null)}>
+            <ModalHeader title="Edit Member" onClose={() => setEditTarget(null)} />
+            <form onSubmit={handleSaveEdit} className="flex flex-col gap-4">
+              <Field
+                label="Full Name *"
+                value={editForm.full_name}
+                onChange={(v) => setEditForm((current) => ({ ...current, full_name: v }))}
+                placeholder="Jane Smith"
+                autoFocus
+              />
+              <Field
+                label="Email *"
+                type="email"
+                value={editForm.email}
+                onChange={(v) => setEditForm((current) => ({ ...current, email: v }))}
+                placeholder="jane@company.com"
+              />
+              <Field
+                label="Phone Number"
+                type="tel"
+                value={editForm.phone}
+                onChange={(v) => setEditForm((current) => ({ ...current, phone: v }))}
+                placeholder="+1 555 123 4567"
+              />
+              {editError && <p className="text-xs text-red-400">{editError}</p>}
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditTarget(null)}
+                  disabled={savingEdit}
+                  className="flex-1 h-10 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit || !editForm.full_name.trim() || !editForm.email.trim()}
+                  className="flex-1 h-10 rounded-lg text-sm font-semibold bg-[#FF4533] text-white hover:bg-[#e03d2d] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  {savingEdit ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                  {savingEdit ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </Modal>
         )}
       </AnimatePresence>

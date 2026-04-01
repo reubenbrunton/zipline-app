@@ -41,6 +41,7 @@ let lists: List[] = [
   {
     id: LIST_1,
     name: "Apex Rebrand",
+    assignee_id: "user-jordan",
     client_contact_id: 1,
     client_name: "Apex Capital",
     color: "#FF4533",
@@ -51,6 +52,7 @@ let lists: List[] = [
   {
     id: LIST_2,
     name: "Internal Ops",
+    assignee_id: "user-maya",
     client_name: "Zipline Internal",
     color: "#6366F1",
     stage: "pre_production",
@@ -60,6 +62,7 @@ let lists: List[] = [
   {
     id: LIST_3,
     name: "NovaTech Social",
+    assignee_id: "user-alex",
     client_contact_id: 2,
     client_name: "NovaTech Inc.",
     color: "#10B981",
@@ -70,6 +73,7 @@ let lists: List[] = [
   {
     id: LIST_4,
     name: "Personal Tasks",
+    assignee_id: "user-jordan",
     client_name: "Personal",
     color: "#8B5CF6",
     stage: "parked",
@@ -79,6 +83,7 @@ let lists: List[] = [
   {
     id: LIST_5,
     name: "Ideas & Planning",
+    assignee_id: "user-jordan",
     client_name: "Zipline Internal",
     color: "#38BDF8",
     stage: "parked",
@@ -259,6 +264,7 @@ function computeListStats(list: List): List {
     .filter((p): p is Profile => Boolean(p));
   return {
     ...list,
+    assignee: list.assignee_id ? profiles.find((p) => p.id === list.assignee_id) : undefined,
     total_task_count: listTasks.length,
     pending_task_count: pending,
     total_estimate_minutes: estimate,
@@ -290,6 +296,7 @@ export async function getLists(): Promise<List[]> {
 export async function createList(data: {
   name: string;
   color?: string;
+  assignee_id?: string;
   client_contact_id?: number;
   client_name?: string;
   icon_url?: string;
@@ -299,6 +306,7 @@ export async function createList(data: {
     id: uid(),
     name: data.name,
     color: data.color,
+    assignee_id: data.assignee_id,
     client_contact_id: data.client_contact_id,
     client_name: data.client_name,
     icon_url: data.icon_url,
@@ -318,7 +326,7 @@ export async function createList(data: {
 
 export async function updateList(
   id: string,
-  patch: Partial<Pick<List, "name" | "color" | "stage" | "client_contact_id" | "client_name">>
+  patch: Partial<Pick<List, "name" | "color" | "stage" | "assignee_id" | "client_contact_id" | "client_name">>
 ): Promise<List> {
   lists = lists.map((l) => (l.id === id ? { ...l, ...patch } : l));
   const found = lists.find((l) => l.id === id)!;
@@ -361,6 +369,7 @@ export async function createTask(data: {
   list_id: string;
   title: string;
   status: Task["status"];
+  assignee_id?: string;
   time_estimate_minutes?: number;
 }): Promise<Task> {
   const task: Task = {
@@ -369,6 +378,7 @@ export async function createTask(data: {
     title: data.title,
     status: data.status,
     priority: "medium",
+    assignee_id: data.assignee_id,
     time_estimate_minutes: data.time_estimate_minutes,
     position: (tasks.filter((t) => t.list_id === data.list_id).length + 1) * 1000,
     created_at: new Date().toISOString(),

@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { List } from "@/types/tasks";
+import { AssigneeAvatar } from "./AssigneeAvatar";
 
 // ---------------------------------------------------------------------------
 // Skeleton
@@ -177,6 +178,18 @@ function RegularListCard({
               <span className="text-xs text-[#8888AA]">
                 Est. {formatMinutes(list.total_estimate_minutes)}
               </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 min-w-0">
+            {list.assignee ? (
+              <>
+                <AssigneeAvatar profile={list.assignee} />
+                <span className="text-xs text-white/70 truncate">
+                  {list.assignee.full_name ?? list.assignee.email}
+                </span>
+              </>
+            ) : (
+              <span className="text-xs text-[#8888AA]">Unassigned</span>
             )}
           </div>
         </div>

@@ -13,6 +13,8 @@ export interface List {
   id: string
   name: string
   color?: string
+  assignee_id?: string
+  assignee?: Profile
   client_contact_id?: number
   client_name?: string
   icon_url?: string

@@ -4,7 +4,7 @@ import type { List } from "@/types/tasks";
 
 type UpdateListVars = {
   id: string;
-  patch: Partial<Pick<List, "name" | "color" | "stage" | "client_contact_id" | "client_name">>;
+  patch: Partial<Pick<List, "name" | "color" | "stage" | "assignee_id" | "client_contact_id" | "client_name">>;
 };
 
 export function useUpdateList() {
@@ -18,7 +18,15 @@ export function useUpdateList() {
       const prev = queryClient.getQueryData<List[]>(["lists"]);
 
       queryClient.setQueryData<List[]>(["lists"], (old = []) =>
-        old.map((l) => (l.id === id ? { ...l, ...patch } : l))
+        old.map((l) =>
+          l.id === id
+            ? {
+                ...l,
+                ...patch,
+                assignee: Object.prototype.hasOwnProperty.call(patch, "assignee_id") ? undefined : l.assignee,
+              }
+            : l
+        )
       );
 
       return { prev };
