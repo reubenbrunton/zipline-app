@@ -83,7 +83,7 @@ export function TaskAssigneeMenu({
       disabled={disabled}
       onClick={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
-      className="flex items-center gap-2 rounded-lg hover:bg-white/[0.06] px-1.5 py-1 transition-colors disabled:opacity-50"
+      className="ml-auto flex items-center gap-2 rounded-lg hover:bg-white/[0.06] px-1.5 py-1 transition-colors disabled:opacity-50"
       title={selectedProfiles.length > 0 ? summaryLabel : "Assign team members"}
     >
       <AssigneeStack profiles={selectedProfiles} />
