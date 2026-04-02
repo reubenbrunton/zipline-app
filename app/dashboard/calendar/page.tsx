@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   addYears, subYears,
@@ -25,6 +25,14 @@ const variants = {
 };
 
 export default function CalendarPage() {
+  return (
+    <Suspense>
+      <CalendarPageInner />
+    </Suspense>
+  );
+}
+
+function CalendarPageInner() {
   const [view, setView] = useState<CalendarView>("month");
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [direction, setDirection] = useState<1 | -1>(1);
