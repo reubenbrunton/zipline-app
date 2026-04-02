@@ -20,6 +20,10 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const calendarIds = searchParams.getAll("calendarId");
+  const calendarColors = searchParams.getAll("calendarColor");
+  const colorMap: Record<string, string> = {};
+  calendarIds.forEach((id, i) => { colorMap[id] = calendarColors[i] ?? "#6366F1"; });
+
   const timeMin = searchParams.get("timeMin") ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
   const timeMax = searchParams.get("timeMax") ?? new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -50,9 +54,10 @@ export async function GET(req: NextRequest) {
         if (item.status === "cancelled") continue;
 
         const allDay = !!item.start?.date;
+        const calendarColor = colorMap[calId] ?? "#6366F1";
         const color = item.colorId
-          ? (GOOGLE_COLORS[item.colorId] ?? "#6366F1")
-          : "#6366F1";
+          ? (GOOGLE_COLORS[item.colorId] ?? calendarColor)
+          : calendarColor;
 
         allEvents.push({
           id: item.id,

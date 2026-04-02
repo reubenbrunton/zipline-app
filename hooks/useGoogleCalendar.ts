@@ -87,6 +87,73 @@ export function useGoogleCalendarEvents(
   });
 }
 
+// ── Shared with me ─────────────────────────────────────────────────────────
+
+export function useSharedCalendars() {
+  return useQuery<Calendar[]>({
+    queryKey: ["shared-calendars"],
+    queryFn: async () => {
+      const res = await fetch("/api/google/calendar/shared-with-me");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.calendars ?? [];
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ── Calendar shares (owned by me) ──────────────────────────────────────────
+
+export interface CalendarShare {
+  id: string;
+  calendar_id: string;
+  calendar_name: string;
+  calendar_color: string;
+  shared_with: string;
+}
+
+export function useCalendarShares() {
+  return useQuery<CalendarShare[]>({
+    queryKey: ["calendar-shares"],
+    queryFn: async () => {
+      const res = await fetch("/api/google/calendar/share");
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.shares ?? [];
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useShareCalendar() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { calendar_id: string; calendar_name: string; calendar_color: string; shared_with_id: string }) => {
+      const res = await fetch("/api/google/calendar/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(vars),
+      });
+      if (!res.ok) throw new Error("Failed to share");
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["calendar-shares"] }),
+  });
+}
+
+export function useUnshareCalendar() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (vars: { calendar_id: string; shared_with_id: string }) => {
+      await fetch("/api/google/calendar/share", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(vars),
+      });
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["calendar-shares"] }),
+  });
+}
+
 // ── Disconnect ─────────────────────────────────────────────────────────────
 
 export function useDisconnectGoogle() {

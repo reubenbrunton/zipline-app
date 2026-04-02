@@ -95,8 +95,8 @@ export default function DashboardLayout({
           title={title}
           onMobileMenuToggle={() => setMobileOpen((o) => !o)}
         />
-        <main className="flex-1 overflow-y-auto p-5 lg:p-6 relative z-10">
-          <div className="relative h-full">
+        <main className="flex-1 overflow-y-auto p-5 lg:p-6 relative z-10 flex flex-col">
+          <div className="relative flex-1 min-h-0">
             <AnimatePresence mode="sync" initial={false}>
               <motion.div
                 key={pathname}

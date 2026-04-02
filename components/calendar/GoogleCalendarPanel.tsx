@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MoreHorizontal, Share2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   useGoogleCalendarStatus,
@@ -8,8 +9,169 @@ import {
   useCalendarPrefs,
   useSaveCalendarPrefs,
   useDisconnectGoogle,
+  useSharedCalendars,
+  useCalendarShares,
+  useShareCalendar,
+  useUnshareCalendar,
 } from "@/hooks/useGoogleCalendar";
+import { useProfiles } from "@/hooks/tasks";
 import { useQueryClient } from "@tanstack/react-query";
+import type { Calendar } from "@/types/calendar";
+
+// ── Share modal ──────────────────────────────────────────────────────────────
+
+function ShareCalendarModal({
+  calendar,
+  onClose,
+}: {
+  calendar: Calendar;
+  onClose: () => void;
+}) {
+  const { data: profiles = [] } = useProfiles();
+  const { data: shares = [] } = useCalendarShares();
+  const shareCalendar = useShareCalendar();
+  const unshareCalendar = useUnshareCalendar();
+
+  const sharedWithIds = shares
+    .filter((s) => s.calendar_id === calendar.id)
+    .map((s) => s.shared_with);
+
+  function toggle(userId: string) {
+    if (sharedWithIds.includes(userId)) {
+      unshareCalendar.mutate({ calendar_id: calendar.id, shared_with_id: userId });
+    } else {
+      shareCalendar.mutate({
+        calendar_id: calendar.id,
+        calendar_name: calendar.name,
+        calendar_color: calendar.color,
+        shared_with_id: userId,
+      });
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-[#1A1A2E] border border-white/[0.1] rounded-2xl p-5 w-80 shadow-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-sm font-semibold text-white">Share calendar</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: calendar.color }} />
+              <p className="text-xs text-[#8888AA] truncate">{calendar.name}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-white/30 hover:text-white/70 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {profiles.length === 0 ? (
+          <p className="text-xs text-[#8888AA]">No team members found.</p>
+        ) : (
+          <ul className="space-y-1 max-h-64 overflow-y-auto">
+            {profiles.map((profile) => {
+              const isShared = sharedWithIds.includes(profile.id);
+              return (
+                <li key={profile.id}>
+                  <button
+                    onClick={() => toggle(profile.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors text-left",
+                      isShared ? "bg-white/[0.08] text-white" : "text-white/60 hover:bg-white/[0.04] hover:text-white"
+                    )}
+                  >
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                      style={{ backgroundColor: "#FF4533" }}
+                    >
+                      {(profile.full_name ?? profile.email)[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-medium text-xs">{profile.full_name ?? profile.email}</p>
+                      <p className="truncate text-[10px] text-white/40">{profile.email}</p>
+                    </div>
+                    {isShared && (
+                      <div className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      </div>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <button
+          onClick={onClose}
+          className="mt-4 w-full px-3 py-2 rounded-xl text-xs font-medium bg-white/[0.06] text-white/60 hover:text-white hover:bg-white/[0.1] transition-colors"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Calendar row with hover menu ─────────────────────────────────────────────
+
+function CalendarRow({
+  cal,
+  active,
+  onToggle,
+  onShare,
+}: {
+  cal: Calendar;
+  active: boolean;
+  onToggle: () => void;
+  onShare: () => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <li className="group relative">
+      <div className={cn(
+        "flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors",
+        active ? "text-white" : "text-white/40 hover:text-white/70"
+      )}>
+        <button
+          onClick={onToggle}
+          className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
+        >
+          <div
+            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+            style={{ backgroundColor: active ? cal.color : "#555" }}
+          />
+          <span className="truncate">{cal.name}</span>
+        </button>
+
+        <button
+          onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
+          className="opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 flex items-center justify-center rounded hover:bg-white/[0.1] text-white/40 hover:text-white flex-shrink-0"
+        >
+          <MoreHorizontal className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {menuOpen && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+          <div className="absolute right-0 top-7 z-20 bg-[#1A1A2E] border border-white/[0.1] rounded-xl shadow-2xl py-1 min-w-[130px]">
+            <button
+              onClick={() => { setMenuOpen(false); onShare(); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-white/80 hover:bg-white/[0.06] transition-colors"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              Share
+            </button>
+          </div>
+        </>
+      )}
+    </li>
+  );
+}
+
+// ── Main panel ───────────────────────────────────────────────────────────────
 
 export function GoogleCalendarPanel() {
   const queryClient = useQueryClient();
@@ -18,56 +180,54 @@ export function GoogleCalendarPanel() {
 
   const { data: calendars = [], isLoading: calsLoading } = useGoogleCalendars();
   const { data: selectedIds = [] } = useCalendarPrefs();
+  const { data: sharedCalendars = [] } = useSharedCalendars();
   const savePrefs = useSaveCalendarPrefs();
   const disconnect = useDisconnectGoogle();
 
   const [showConfirmDisconnect, setShowConfirmDisconnect] = useState(false);
+  const [sharingCalendar, setSharingCalendar] = useState<Calendar | null>(null);
 
   function toggleCalendar(id: string) {
     const next = selectedIds.includes(id)
       ? selectedIds.filter((s) => s !== id)
       : [...selectedIds, id];
     savePrefs.mutate(next, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["events"] });
-      },
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["events"] }),
     });
   }
 
   if (statusLoading) {
-    return (
-      <div className="w-56 flex-shrink-0 rounded-xl bg-white/[0.04] border border-white/[0.08] p-4 animate-pulse" />
-    );
+    return <div className="w-56 flex-shrink-0 rounded-xl bg-white/[0.04] border border-white/[0.08] p-4 animate-pulse" />;
   }
 
   return (
-    <div className="w-56 flex-shrink-0 rounded-xl bg-white/[0.04] border border-white/[0.08] p-4 flex flex-col gap-4">
-      <div>
-        <p className="text-[11px] font-semibold text-[#8888AA] uppercase tracking-wider mb-2">
-          Google Calendar
-        </p>
+    <>
+      <div className="w-56 flex-shrink-0 rounded-xl bg-white/[0.04] border border-white/[0.08] p-4 flex flex-col gap-4 overflow-y-auto">
+        <div>
+          <p className="text-[11px] font-semibold text-[#8888AA] uppercase tracking-wider mb-2">
+            Google Calendar
+          </p>
 
-        {!connected ? (
-          <a
-            href="/api/google/auth"
-            className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-sm text-white font-medium transition-colors"
-          >
-            <GoogleIcon />
-            Connect
-          </a>
-        ) : (
-          <div className="flex items-center gap-1.5 text-xs text-emerald-400">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            Connected
-          </div>
-        )}
-      </div>
+          {!connected ? (
+            <a
+              href="/api/google/auth"
+              className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-sm text-white font-medium transition-colors"
+            >
+              <GoogleIcon />
+              Connect
+            </a>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              Connected
+            </div>
+          )}
+        </div>
 
-      {connected && (
-        <>
+        {connected && (
           <div>
             <p className="text-[11px] font-semibold text-[#8888AA] uppercase tracking-wider mb-2">
-              Calendars
+              My Calendars
             </p>
 
             {calsLoading ? (
@@ -79,43 +239,46 @@ export function GoogleCalendarPanel() {
             ) : calendars.length === 0 ? (
               <p className="text-xs text-[#8888AA]">No calendars found</p>
             ) : (
-              <ul className="space-y-1">
-                {calendars.map((cal) => {
-                  const active = selectedIds.includes(cal.id);
-                  return (
-                    <li key={cal.id}>
-                      <button
-                        onClick={() => toggleCalendar(cal.id)}
-                        className={cn(
-                          "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors text-left",
-                          active
-                            ? "bg-white/[0.06] text-white"
-                            : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
-                        )}
-                      >
-                        <div
-                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: active ? cal.color : "#555" }}
-                        />
-                        <span className="truncate">{cal.name}</span>
-                      </button>
-                    </li>
-                  );
-                })}
+              <ul className="space-y-0.5">
+                {calendars.map((cal) => (
+                  <CalendarRow
+                    key={cal.id}
+                    cal={cal}
+                    active={selectedIds.includes(cal.id)}
+                    onToggle={() => toggleCalendar(cal.id)}
+                    onShare={() => setSharingCalendar(cal)}
+                  />
+                ))}
               </ul>
             )}
           </div>
+        )}
 
+        {/* Shared with me */}
+        {sharedCalendars.length > 0 && (
+          <div>
+            <p className="text-[11px] font-semibold text-[#8888AA] uppercase tracking-wider mb-2">
+              Shared With Me
+            </p>
+            <ul className="space-y-0.5">
+              {sharedCalendars.map((cal) => (
+                <li key={cal.id} className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-white/70">
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: cal.color }} />
+                  <span className="truncate">{cal.name}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {connected && (
           <div className="mt-auto pt-2 border-t border-white/[0.06]">
             {showConfirmDisconnect ? (
               <div className="space-y-2">
                 <p className="text-xs text-white/60">Disconnect Google Calendar?</p>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      disconnect.mutate();
-                      setShowConfirmDisconnect(false);
-                    }}
+                    onClick={() => { disconnect.mutate(); setShowConfirmDisconnect(false); }}
                     className="flex-1 px-2 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
                   >
                     Yes
@@ -137,9 +300,16 @@ export function GoogleCalendarPanel() {
               </button>
             )}
           </div>
-        </>
+        )}
+      </div>
+
+      {sharingCalendar && (
+        <ShareCalendarModal
+          calendar={sharingCalendar}
+          onClose={() => setSharingCalendar(null)}
+        />
       )}
-    </div>
+    </>
   );
 }
 

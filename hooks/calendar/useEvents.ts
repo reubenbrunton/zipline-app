@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getEvents } from "@/lib/calendar/calendarService";
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format } from "date-fns";
 import type { CalendarView, CalendarEvent } from "@/types/calendar";
-import { useCalendarPrefs, useGoogleCalendarStatus } from "@/hooks/useGoogleCalendar";
+import { useCalendarPrefs, useGoogleCalendarStatus, useGoogleCalendars, useSharedCalendars } from "@/hooks/useGoogleCalendar";
 
 function getDateRange(view: CalendarView, date: Date): { start: Date; end: Date } {
   switch (view) {
@@ -43,20 +43,45 @@ export function useEvents(view: CalendarView, date: Date) {
 
   const { data: status } = useGoogleCalendarStatus();
   const { data: calendarIds = [] } = useCalendarPrefs();
+  const { data: calendars = [] } = useGoogleCalendars();
+  const { data: sharedCalendars = [] } = useSharedCalendars();
   const connected = status?.connected ?? false;
 
   return useQuery<CalendarEvent[]>({
-    queryKey: ["events", startKey, endKey, connected, calendarIds],
+    queryKey: ["events", startKey, endKey, connected, calendarIds, sharedCalendars.map((c) => c.id)],
     queryFn: async () => {
-      if (!connected || calendarIds.length === 0) {
+      if (!connected && sharedCalendars.length === 0) {
         return getEvents(start, end);
       }
-      const params = new URLSearchParams({ timeMin: startISO, timeMax: endISO });
-      calendarIds.forEach((id) => params.append("calendarId", id));
-      const res = await fetch(`/api/google/calendar/events?${params}`);
-      if (!res.ok) return getEvents(start, end);
-      const data = await res.json();
-      return data.events ?? [];
+
+      const results: CalendarEvent[] = [];
+
+      // Own calendars
+      if (connected && calendarIds.length > 0) {
+        const params = new URLSearchParams({ timeMin: startISO, timeMax: endISO });
+        calendarIds.forEach((id) => {
+          params.append("calendarId", id);
+          const cal = calendars.find((c) => c.id === id);
+          params.append("calendarColor", cal?.color ?? "#6366F1");
+        });
+        const res = await fetch(`/api/google/calendar/events?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          results.push(...(data.events ?? []));
+        }
+      }
+
+      // Shared calendars
+      if (sharedCalendars.length > 0) {
+        const params = new URLSearchParams({ timeMin: startISO, timeMax: endISO, events: "true" });
+        const res = await fetch(`/api/google/calendar/shared-with-me?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          results.push(...(data.events ?? []));
+        }
+      }
+
+      return results.length > 0 ? results : getEvents(start, end);
     },
     staleTime: 2 * 60_000,
   });

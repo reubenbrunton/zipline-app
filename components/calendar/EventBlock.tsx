@@ -27,7 +27,7 @@ export function EventBlock({ event, columnIndex = 0, totalColumns = 1, onClick }
     <button
       onClick={(e) => { e.stopPropagation(); onClick(event); }}
       className={cn(
-        "absolute rounded-r-lg px-2 py-1 text-left overflow-hidden",
+        "absolute rounded-r-lg px-2 py-1 text-left overflow-hidden flex flex-col justify-start items-start",
         "hover:brightness-110 transition-all duration-150 cursor-pointer group",
         event.status === "tentative" && "opacity-70 border-dashed"
       )}
