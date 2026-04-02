@@ -7,9 +7,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { AlertCircle, Clock, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMinutes } from "@/lib/tasks-api";
-import { useArchiveList } from "@/hooks/tasks";
+import { useArchiveList, useUpdateList } from "@/hooks/tasks";
 import type { List } from "@/types/tasks";
-import { AssigneeAvatar } from "./AssigneeAvatar";
+import { TaskAssigneeMenu } from "./TaskAssigneeMenu";
 
 // ---------------------------------------------------------------------------
 // Card
@@ -24,6 +24,7 @@ interface ListKanbanCardProps {
 export function ListKanbanCard({ list, isOverlay, onEdit }: ListKanbanCardProps) {
   const router = useRouter();
   const archiveList = useArchiveList();
+  const updateList = useUpdateList();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -148,16 +149,13 @@ export function ListKanbanCard({ list, isOverlay, onEdit }: ListKanbanCardProps)
 
         {/* Footer: avatars + high priority */}
         <div className="flex items-center justify-between">
-          {list.assignee ? (
-            <div className="flex items-center gap-2 min-w-0">
-              <AssigneeAvatar profile={list.assignee} />
-              <span className="text-[11px] text-white/70 truncate">
-                {list.assignee.full_name ?? list.assignee.email}
-              </span>
-            </div>
-          ) : (
-            <span className="text-[11px] text-[#8888AA]">Unassigned</span>
-          )}
+          <TaskAssigneeMenu
+            compact
+            assigneeIds={list.assignee_ids ?? (list.assignee_id ? [list.assignee_id] : [])}
+            onChange={(assignee_ids) =>
+              updateList.mutate({ id: list.id, patch: { assignee_ids } })
+            }
+          />
 
           {/* High priority indicator */}
           {list.has_high_priority && (

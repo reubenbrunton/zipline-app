@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Plus, MoreHorizontal, Archive, LayoutGrid } from "lucide-react";
 import { formatMinutes } from "@/lib/tasks-api";
-import { useArchiveList } from "@/hooks/tasks";
+import { useArchiveList, useUpdateList } from "@/hooks/tasks";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { List } from "@/types/tasks";
-import { AssigneeAvatar } from "./AssigneeAvatar";
+import { TaskAssigneeMenu } from "./TaskAssigneeMenu";
 
 // ---------------------------------------------------------------------------
 // Skeleton
@@ -106,6 +106,7 @@ function RegularListCard({
   onArchive: () => void;
 }) {
   const router = useRouter();
+  const updateList = useUpdateList();
 
   return (
     <div
@@ -180,17 +181,14 @@ function RegularListCard({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 min-w-0">
-            {list.assignee ? (
-              <>
-                <AssigneeAvatar profile={list.assignee} />
-                <span className="text-xs text-white/70 truncate">
-                  {list.assignee.full_name ?? list.assignee.email}
-                </span>
-              </>
-            ) : (
-              <span className="text-xs text-[#8888AA]">Unassigned</span>
-            )}
+          <div onClick={(e) => e.stopPropagation()}>
+            <TaskAssigneeMenu
+              compact
+              assigneeIds={list.assignee_ids ?? (list.assignee_id ? [list.assignee_id] : [])}
+              onChange={(assignee_ids) =>
+                updateList.mutate({ id: list.id, patch: { assignee_ids } })
+              }
+            />
           </div>
         </div>
       </div>

@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfiles } from "@/hooks/tasks";
-import { AssigneeAvatar } from "./AssigneeAvatar";
+import { AssigneeAvatar, AssigneeStack } from "./AssigneeAvatar";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -18,34 +17,6 @@ import type { Profile } from "@/types/tasks";
 
 function uniqueIds(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
-}
-
-function AssigneeStack({ profiles, size = "xs" }: { profiles: Profile[]; size?: "xs" | "sm" | "md" }) {
-  if (profiles.length === 0) {
-    return (
-      <div className="w-5 h-5 rounded-full border border-dashed border-white/20 flex items-center justify-center text-white/40">
-        <Users className="w-3 h-3" />
-      </div>
-    );
-  }
-
-  const visibleProfiles = profiles.slice(0, 3);
-  const overflow = profiles.length - visibleProfiles.length;
-
-  return (
-    <div className="flex items-center">
-      {visibleProfiles.map((profile, index) => (
-        <div key={profile.id} className={cn(index > 0 && "-ml-1.5")}>
-          <AssigneeAvatar profile={profile} size={size} />
-        </div>
-      ))}
-      {overflow > 0 && (
-        <div className="-ml-1.5 w-5 h-5 rounded-full bg-white/[0.08] ring-1 ring-white/10 flex items-center justify-center text-[9px] font-bold text-white/70">
-          +{overflow}
-        </div>
-      )}
-    </div>
-  );
 }
 
 interface TaskAssigneeMenuProps {
