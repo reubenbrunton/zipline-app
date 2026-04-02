@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   }
 
   // Exchange code for tokens
-  const redirectUri = `${appUrl}/api/google/callback`;
+  const redirectUri = `${appUrl}/api/google/calendar/callback`;
   const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },

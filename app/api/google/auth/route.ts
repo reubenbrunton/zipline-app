@@ -8,7 +8,7 @@ const SCOPES = [
 export async function GET() {
   const clientId = process.env.GOOGLE_CLIENT_ID!;
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const redirectUri = `${appUrl}/api/google/callback`;
+  const redirectUri = `${appUrl}/api/google/calendar/callback`;
 
   const params = new URLSearchParams({
     client_id: clientId,
