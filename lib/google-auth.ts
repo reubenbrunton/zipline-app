@@ -31,8 +31,8 @@ export async function getAccessToken(userId: string): Promise<string | null> {
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       refresh_token: data.refresh_token,
-      client_id: process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      client_id: process.env.GOOGLE_CLIENT_ID!.trim(),
+      client_secret: process.env.GOOGLE_CLIENT_SECRET!.trim(),
       grant_type: "refresh_token",
     }),
   });
