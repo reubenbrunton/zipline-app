@@ -34,13 +34,14 @@ interface NavItem {
   icon: React.ElementType;
   badge?: number;
   children?: NavChild[];
+  disabled?: boolean;
 }
 
 const CRM_EXTERNAL_URL = "https://app.attio.com/zipline-marketing/home";
 
 const navItems: NavItem[] = [
   { href: "/dashboard/project-hub", label: "Project Hub", icon: FolderKanban },
-  { href: "/dashboard/calendar", label: "Calendar", icon: Calendar },
+  { href: "/dashboard/calendar", label: "Calendar", icon: Calendar, disabled: true },
   { href: "/dashboard/team", label: "Team & Staff", icon: UserCog },
 ];
 
@@ -111,11 +112,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Nav items */}
       <nav className="flex-1 py-2.5 overflow-y-auto overflow-x-hidden">
         <ul className="space-y-0.5 px-2">
-          {navItems.map(({ href, label, icon: Icon, badge, children }) => {
+          {navItems.map(({ href, label, icon: Icon, badge, children, disabled }) => {
             const isActive =
-              href === "/dashboard"
+              !disabled &&
+              (href === "/dashboard"
                 ? pathname === "/dashboard"
-                : pathname.startsWith(href);
+                : pathname.startsWith(href));
             const hasChildren = !!children?.length;
             const isExpanded = expanded === href;
 
@@ -126,7 +128,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                   className={cn(
                     "relative flex items-center rounded-xl text-sm transition-colors duration-150 select-none",
                     collapsed && "justify-center mx-1",
-                    isActive ? "text-white" : "text-white/95 hover:text-white"
+                    disabled
+                      ? "text-white/25 cursor-not-allowed"
+                      : isActive ? "text-white" : "text-white/95 hover:text-white"
                   )}
                   title={collapsed ? label : undefined}
                 >
@@ -139,13 +143,14 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                     />
                   )}
 
-                  {/* Clickable nav area — always navigates */}
+                  {/* Clickable nav area — always navigates (unless disabled) */}
                   <div
                     className={cn(
-                      "flex items-center gap-3 flex-1 cursor-pointer px-3 py-3",
-                      collapsed && "justify-center px-0"
+                      "flex items-center gap-3 flex-1 px-3 py-3",
+                      collapsed && "justify-center px-0",
+                      disabled ? "cursor-not-allowed" : "cursor-pointer"
                     )}
-                    onClick={() => router.push(href)}
+                    onClick={() => !disabled && router.push(href)}
                   >
                     <Icon
                       className={cn(
