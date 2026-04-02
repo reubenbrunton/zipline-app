@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useProfiles } from "@/hooks/tasks";
 import { AssigneeAvatar } from "./AssigneeAvatar";
@@ -26,9 +26,16 @@ export function AssigneePicker({
 }: AssigneePickerProps) {
   const { data: profiles = [], isLoading } = useProfiles();
   const [localValues, setLocalValues] = useState<string[]>(multiple ? values ?? [] : value ? [value] : []);
+  const prevIncomingRef = useRef<string[]>(multiple ? values ?? [] : value ? [value] : []);
 
   useEffect(() => {
-    setLocalValues(multiple ? values ?? [] : value ? [value] : []);
+    const incoming = multiple ? values ?? [] : value ? [value] : [];
+    const prev = prevIncomingRef.current;
+    const changed = prev.length !== incoming.length || prev.some((id, i) => id !== incoming[i]);
+    if (changed) {
+      prevIncomingRef.current = incoming;
+      setLocalValues(incoming);
+    }
   }, [multiple, value, values]);
 
   const selectedValues = localValues;

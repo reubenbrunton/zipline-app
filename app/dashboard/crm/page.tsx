@@ -389,7 +389,7 @@ export default function CRMPage() {
   const activeFunnelColor =
     activeFunnelContact
       ? pipeline.find((stage) => stage.stage === activeFunnelContact.pipelineStage)?.color ??
-        "#8888AA"
+      "#8888AA"
       : "#8888AA";
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useProfiles } from "@/hooks/tasks";
@@ -63,9 +63,16 @@ export function TaskAssigneeMenu({
 }: TaskAssigneeMenuProps) {
   const { data: profiles = [], isLoading } = useProfiles();
   const [localIds, setLocalIds] = useState<string[]>(uniqueIds(assigneeIds));
+  const prevIncomingRef = useRef<string[]>(uniqueIds(assigneeIds));
 
   useEffect(() => {
-    setLocalIds(uniqueIds(assigneeIds));
+    const incoming = uniqueIds(assigneeIds);
+    const prev = prevIncomingRef.current;
+    const changed = prev.length !== incoming.length || prev.some((id, i) => id !== incoming[i]);
+    if (changed) {
+      prevIncomingRef.current = incoming;
+      setLocalIds(incoming);
+    }
   }, [assigneeIds]);
 
   const normalizedIds = localIds;
