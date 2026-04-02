@@ -43,7 +43,7 @@ function CalendarPageInner() {
 
   useEffect(() => {
     if (searchParams.get("connected") === "true") setBanner("connected");
-    else if (searchParams.get("error")) setBanner("error");
+    else if (searchParams.get("error")) setBanner(searchParams.get("error") as "error");
   }, [searchParams]);
 
   function navigate(dir: 1 | -1) {
@@ -90,7 +90,7 @@ function CalendarPageInner() {
         }`}>
           {banner === "connected"
             ? "Google Calendar connected successfully."
-            : "Failed to connect Google Calendar. Please try again."}
+            : `Failed to connect Google Calendar: ${banner}`}
           <button onClick={() => setBanner(null)} className="ml-3 opacity-60 hover:opacity-100">✕</button>
         </div>
       )}

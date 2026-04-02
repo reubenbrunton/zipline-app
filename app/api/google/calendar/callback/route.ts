@@ -34,7 +34,9 @@ export async function GET(req: NextRequest) {
   });
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect(`${appUrl}/dashboard/calendar?error=token_exchange_failed`);
+    const errBody = await tokenRes.json().catch(() => ({}));
+    const msg = encodeURIComponent(errBody.error ?? "token_exchange_failed");
+    return NextResponse.redirect(`${appUrl}/dashboard/calendar?error=${msg}`);
   }
 
   const tokens = await tokenRes.json();
