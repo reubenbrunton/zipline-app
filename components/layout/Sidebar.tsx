@@ -41,7 +41,7 @@ const CRM_EXTERNAL_URL = "https://app.attio.com/zipline-marketing/home";
 
 const navItems: NavItem[] = [
   { href: "/dashboard/project-hub", label: "Project Hub", icon: FolderKanban },
-  { href: "/dashboard/calendar", label: "Calendar", icon: Calendar, disabled: true },
+  { href: "/dashboard/calendar", label: "Calendar", icon: Calendar },
   { href: "/dashboard/team", label: "Team & Staff", icon: UserCog },
 ];
 
