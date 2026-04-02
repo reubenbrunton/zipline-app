@@ -15,6 +15,8 @@ export interface List {
   color?: string
   assignee_id?: string
   assignee?: Profile
+  assignee_ids?: string[]
+  assignees?: Profile[]
   client_contact_id?: number
   client_name?: string
   icon_url?: string

@@ -4,7 +4,7 @@ import type { List } from "@/types/tasks";
 
 type UpdateListVars = {
   id: string;
-  patch: Partial<Pick<List, "name" | "color" | "stage" | "assignee_id" | "client_contact_id" | "client_name">>;
+  patch: Partial<Pick<List, "name" | "color" | "stage" | "assignee_id" | "assignee_ids" | "client_contact_id" | "client_name">>;
 };
 
 export function useUpdateList() {
@@ -23,7 +23,8 @@ export function useUpdateList() {
             ? {
                 ...l,
                 ...patch,
-                assignee: Object.prototype.hasOwnProperty.call(patch, "assignee_id") ? undefined : l.assignee,
+                assignee: Object.prototype.hasOwnProperty.call(patch, "assignee_id") || Object.prototype.hasOwnProperty.call(patch, "assignee_ids") ? undefined : l.assignee,
+                assignees: Object.prototype.hasOwnProperty.call(patch, "assignee_ids") ? [] : l.assignees,
               }
             : l
         )

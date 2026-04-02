@@ -46,7 +46,7 @@ export function CreateListModal({
   const [name, setName] = useState("");
   const [selectedColor, setSelectedColor] = useState(COLOR_SWATCHES[0]);
   const [customHex, setCustomHex] = useState(COLOR_SWATCHES[0]);
-  const [assigneeId, setAssigneeId] = useState<string | undefined>(undefined);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [clientName, setClientName] = useState("");
   const [showValidation, setShowValidation] = useState(false);
 
@@ -63,13 +63,13 @@ export function CreateListModal({
       setName(editingList.name);
       setSelectedColor(baseColor);
       setCustomHex(baseColor);
-      setAssigneeId(editingList.assignee_id);
+      setAssigneeIds(editingList.assignee_ids ?? (editingList.assignee_id ? [editingList.assignee_id] : []));
       setClientName(editingList.client_name ?? "");
     } else {
       setName("");
       setSelectedColor(COLOR_SWATCHES[0]);
       setCustomHex(COLOR_SWATCHES[0]);
-      setAssigneeId(undefined);
+      setAssigneeIds([]);
       setClientName("");
     }
 
@@ -90,7 +90,7 @@ export function CreateListModal({
           patch: {
             name: name.trim(),
             color: selectedColor,
-            assignee_id: assigneeId,
+            assignee_ids: assigneeIds,
             client_name: isSimpleList ? undefined : clientName.trim() || undefined,
           },
         },
@@ -103,7 +103,7 @@ export function CreateListModal({
       {
         name: name.trim(),
         color: selectedColor,
-        assignee_id: assigneeId,
+        assignee_ids: assigneeIds,
         stage: defaultStage,
         client_name: isSimpleList ? undefined : clientName.trim() || undefined,
       },
@@ -155,7 +155,7 @@ export function CreateListModal({
             </div>
           )}
 
-          <AssigneePicker value={assigneeId} onChange={setAssigneeId} />
+          <AssigneePicker multiple values={assigneeIds} onValuesChange={setAssigneeIds} onChange={() => {}} />
 
           {/* Color */}
           <div>

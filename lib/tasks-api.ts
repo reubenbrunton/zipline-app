@@ -32,6 +32,27 @@ async function getProfilesByIds(supabase: ReturnType<typeof createClient>, ids: 
   return Object.fromEntries((profiles ?? []).map((profile) => [profile.id, mapProfile(profile as ProfileRow)]))
 }
 
+async function syncListAssignees(
+  supabase: ReturnType<typeof createClient>,
+  listId: string,
+  assigneeIds: string[]
+): Promise<void> {
+  const { error: deleteError } = await supabase
+    .from('list_assignees')
+    .delete()
+    .eq('list_id', listId)
+
+  if (deleteError) throw deleteError
+
+  if (assigneeIds.length === 0) return
+
+  const { error: insertError } = await supabase
+    .from('list_assignees')
+    .insert(assigneeIds.map((userId) => ({ list_id: listId, user_id: userId })))
+
+  if (insertError) throw insertError
+}
+
 async function syncTaskAssignees(
   supabase: ReturnType<typeof createClient>,
   taskId: string,
@@ -121,7 +142,7 @@ export async function getLists(): Promise<List[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('lists')
-    .select('*, tasks(id, status, priority, time_estimate_minutes, task_assignees(user_id))')
+    .select('*, list_assignees(user_id), tasks(id, status, priority, time_estimate_minutes, task_assignees(user_id))')
     .eq('is_archived', false)
     .order('created_at', { ascending: true })
 
@@ -131,6 +152,7 @@ export async function getLists(): Promise<List[]> {
   const profileIds = uniqueIds(
     listRows.flatMap((list) => [
       list.assignee_id,
+      ...((list.list_assignees ?? []).map((a: { user_id: string | null }) => a.user_id)),
       ...((list.tasks ?? []).flatMap((task: { task_assignees?: Array<{ user_id: string | null }> }) =>
         (task.task_assignees ?? []).map((assignment) => assignment.user_id)
       )),
@@ -162,12 +184,19 @@ export async function getLists(): Promise<List[]> {
       .map((assigneeId) => profileMap[assigneeId])
       .filter((profile): profile is Profile => Boolean(profile))
 
+    const listAssigneeIds = uniqueIds((l.list_assignees ?? []).map((a: { user_id: string | null }) => a.user_id))
+    const listAssignees = listAssigneeIds
+      .map((id) => profileMap[id])
+      .filter((profile): profile is Profile => Boolean(profile))
+
     return {
       id: l.id,
       name: l.name,
       color: l.color ?? undefined,
-      assignee_id: l.assignee_id ?? undefined,
-      assignee: l.assignee_id ? profileMap[l.assignee_id] : undefined,
+      assignee_id: listAssigneeIds[0] ?? l.assignee_id ?? undefined,
+      assignee: listAssignees[0] ?? (l.assignee_id ? profileMap[l.assignee_id] : undefined),
+      assignee_ids: listAssigneeIds,
+      assignees: listAssignees,
       icon_url: l.icon_url ?? undefined,
       stage: (l.stage ?? 'pre_production') as ListStage,
       client_name: l.client_name ?? undefined,
@@ -188,6 +217,7 @@ export async function createList(data: {
   name: string
   color?: string
   assignee_id?: string
+  assignee_ids?: string[]
   client_contact_id?: number
   client_name?: string
   icon_url?: string
@@ -195,12 +225,13 @@ export async function createList(data: {
 }): Promise<List> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const assigneeIds = uniqueIds(data.assignee_ids ?? (data.assignee_id ? [data.assignee_id] : []))
   const { data: list, error } = await supabase
     .from('lists')
     .insert({
       name: data.name,
       color: data.color,
-      assignee_id: data.assignee_id,
+      assignee_id: assigneeIds[0] ?? null,
       client_contact_id: data.client_contact_id,
       client_name: data.client_name,
       icon_url: data.icon_url,
@@ -212,10 +243,14 @@ export async function createList(data: {
 
   if (error) throw error
 
+  await syncListAssignees(supabase, list.id, assigneeIds)
+
   return {
     ...list,
     stage: list.stage as ListStage,
-    assignee_id: list.assignee_id ?? undefined,
+    assignee_id: assigneeIds[0] ?? undefined,
+    assignee_ids: assigneeIds,
+    assignees: [],
     total_task_count: 0,
     pending_task_count: 0,
     total_estimate_minutes: 0,
@@ -228,22 +263,42 @@ export async function createList(data: {
 
 export async function updateList(
   id: string,
-  patch: Partial<Pick<List, 'name' | 'color' | 'stage' | 'assignee_id' | 'client_contact_id' | 'client_name'>>
+  patch: Partial<Pick<List, 'name' | 'color' | 'stage' | 'assignee_id' | 'assignee_ids' | 'client_contact_id' | 'client_name'>>
 ): Promise<List> {
   const supabase = createClient()
+
+  const assigneeIds = Object.prototype.hasOwnProperty.call(patch, 'assignee_ids')
+    ? uniqueIds(patch.assignee_ids ?? [])
+    : null
+
+  const dbPatch: Record<string, unknown> = { ...patch }
+  delete dbPatch.assignee_ids
+  delete dbPatch.assignees
+  if (assigneeIds) {
+    dbPatch.assignee_id = assigneeIds[0] ?? null
+  }
+
   const { data: list, error } = await supabase
     .from('lists')
-    .update(patch)
+    .update(dbPatch)
     .eq('id', id)
     .select()
     .single()
 
   if (error) throw error
 
+  if (assigneeIds) {
+    await syncListAssignees(supabase, id, assigneeIds)
+  }
+
+  const resolvedAssigneeIds = assigneeIds ?? (list.assignee_id ? [list.assignee_id] : [])
+
   return {
     ...list,
     stage: list.stage as ListStage,
-    assignee_id: list.assignee_id ?? undefined,
+    assignee_id: resolvedAssigneeIds[0] ?? undefined,
+    assignee_ids: resolvedAssigneeIds,
+    assignees: [],
     total_task_count: 0,
     pending_task_count: 0,
     total_estimate_minutes: 0,

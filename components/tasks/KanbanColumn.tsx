@@ -201,34 +201,38 @@ export function KanbanColumn({ status, tasks, listId, onTaskClick, droppedTask }
                 placeholder="Task title…"
                 className="w-full bg-transparent text-sm text-white placeholder:text-[#8888AA] focus:outline-none mb-2"
               />
-              <div className="flex items-center gap-2">
-                <TaskAssigneeMenu compact assigneeIds={newAssigneeIds} onChange={setNewAssigneeIds} />
-                <input
-                  type="number"
-                  value={newEstimate}
-                  onChange={(e) => setNewEstimate(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Est. (min)"
-                  className="w-24 h-7 px-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder:text-[#8888AA]/60 focus:outline-none focus:ring-1 focus:ring-[#FF4533]"
-                />
-                <button
-                  onClick={handleAdd}
-                  disabled={!newTitle.trim() || createTask.isPending}
-                  className="ml-auto px-3 py-1 rounded-lg text-xs font-semibold bg-[#FF4533] text-white hover:bg-[#e03d2d] disabled:opacity-50 transition-colors"
-                >
-                  Add
-                </button>
-                <button
-                  onClick={() => {
-                    setNewTitle("");
-                    setNewEstimate("");
-                    setNewAssigneeIds([]);
-                    setShowAddForm(false);
-                  }}
-                  className="px-2 py-1 rounded-lg text-xs text-white/40 hover:text-white/70 transition-colors"
-                >
-                  Cancel
-                </button>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <TaskAssigneeMenu compact assigneeIds={newAssigneeIds} onChange={setNewAssigneeIds} />
+                  <input
+                    type="number"
+                    value={newEstimate}
+                    onChange={(e) => setNewEstimate(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Est. (min)"
+                    className="flex-1 h-7 px-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder:text-[#8888AA]/60 focus:outline-none focus:ring-1 focus:ring-[#FF4533]"
+                  />
+                </div>
+                <div className="flex items-center gap-2 justify-end">
+                  <button
+                    onClick={() => {
+                      setNewTitle("");
+                      setNewEstimate("");
+                      setNewAssigneeIds([]);
+                      setShowAddForm(false);
+                    }}
+                    className="px-2 py-1 rounded-lg text-xs text-white/40 hover:text-white/70 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAdd}
+                    disabled={!newTitle.trim() || createTask.isPending}
+                    className="px-3 py-1 rounded-lg text-xs font-semibold bg-[#FF4533] text-white hover:bg-[#e03d2d] disabled:opacity-50 transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
