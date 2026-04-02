@@ -16,7 +16,7 @@ const calSans = localFont({
 
 export const metadata: Metadata = {
   title: "Zipline App",
-  description: "Internal operations hub for Zipline agency",
+  description: "shh",
 };
 
 export default function RootLayout({
