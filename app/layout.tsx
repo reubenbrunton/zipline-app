@@ -15,7 +15,7 @@ const calSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Zipline — Agency Platform",
+  title: "Zipline App",
   description: "Internal operations hub for Zipline agency",
 };
 
