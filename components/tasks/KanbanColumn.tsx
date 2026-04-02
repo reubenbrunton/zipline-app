@@ -201,19 +201,17 @@ export function KanbanColumn({ status, tasks, listId, onTaskClick, droppedTask }
                 placeholder="Task title…"
                 className="w-full bg-transparent text-sm text-white placeholder:text-[#8888AA] focus:outline-none mb-2"
               />
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <TaskAssigneeMenu compact assigneeIds={newAssigneeIds} onChange={setNewAssigneeIds} />
-                  <input
-                    type="number"
-                    value={newEstimate}
-                    onChange={(e) => setNewEstimate(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Est. (min)"
-                    className="flex-1 h-7 px-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder:text-[#8888AA]/60 focus:outline-none focus:ring-1 focus:ring-[#FF4533]"
-                  />
-                </div>
-                <div className="flex items-center gap-2 justify-end">
+              <div className="flex items-center gap-2">
+                <TaskAssigneeMenu assigneeIds={newAssigneeIds} onChange={setNewAssigneeIds} />
+                <input
+                  type="number"
+                  value={newEstimate}
+                  onChange={(e) => setNewEstimate(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Est. (min)"
+                  className="flex-1 h-7 px-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white placeholder:text-[#8888AA]/60 focus:outline-none focus:ring-1 focus:ring-[#FF4533]"
+                />
+                <div className="flex items-center gap-1 ml-auto">
                   <button
                     onClick={() => {
                       setNewTitle("");

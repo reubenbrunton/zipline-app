@@ -226,10 +226,12 @@ export function TaskCard({ task, listId, onClick, isOverlay, className }: TaskCa
         )}
 
         {!isOverlay ? (
-          <TaskAssigneeMenu
-            assigneeIds={task.assignee_ids ?? []}
-            onChange={(assignee_ids) => updateTask.mutate({ id: task.id, patch: { assignee_ids } })}
-          />
+          <div className="ml-auto">
+            <TaskAssigneeMenu
+              assigneeIds={task.assignee_ids ?? []}
+              onChange={(assignee_ids) => updateTask.mutate({ id: task.id, patch: { assignee_ids } })}
+            />
+          </div>
         ) : assignees.length > 0 ? (
           <div className="ml-auto flex items-center">
             {assignees.slice(0, 3).map((assignee, index) => (
