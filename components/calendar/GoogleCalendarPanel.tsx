@@ -58,7 +58,7 @@ function ShareCalendarModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#16161F]/95 backdrop-blur-xl border border-white/[0.09] rounded-2xl shadow-2xl p-6 w-80">
+      <div className="bg-white/[0.12] backdrop-blur-2xl border border-white/[0.15] rounded-2xl shadow-2xl p-6 w-80">
         <div className="flex items-center justify-between mb-5">
           <div>
             <p className="text-sm font-semibold text-white">Share calendar</p>
@@ -132,7 +132,7 @@ function ColorPicker({
   return (
     <>
       <div className="fixed inset-0 z-10" onClick={onClose} />
-      <div className="absolute right-0 top-7 z-20 bg-[#16161F]/95 backdrop-blur-xl border border-white/[0.09] rounded-xl shadow-2xl p-3 w-40">
+      <div className="absolute right-0 top-7 z-20 bg-white/[0.12] backdrop-blur-2xl border border-white/[0.15] rounded-xl shadow-2xl p-3 w-40">
         <p className="text-[10px] font-semibold text-[#8888AA] uppercase tracking-wider mb-2">Colour</p>
         <div className="grid grid-cols-4 gap-1.5">
           {COLOR_OPTIONS.map((color) => (
@@ -198,7 +198,7 @@ function CalendarRow({
       {menuOpen && !showColorPicker && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-          <div className="absolute right-0 top-7 z-20 bg-[#16161F]/95 backdrop-blur-xl border border-white/[0.09] rounded-xl shadow-2xl py-1 min-w-[140px]">
+          <div className="absolute right-0 top-7 z-20 bg-white/[0.12] backdrop-blur-2xl border border-white/[0.15] rounded-xl shadow-2xl py-1 min-w-[140px]">
             <button
               onClick={() => { setShowColorPicker(true); }}
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-white/80 hover:bg-white/[0.06] transition-colors"

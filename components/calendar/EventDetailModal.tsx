@@ -80,12 +80,12 @@ export function EventDetailModal({ event, open, onClose }: EventDetailModalProps
           {event.attendees && event.attendees.length > 0 && (
             <div className="flex items-start gap-3">
               <Users className="h-4 w-4 text-[#8888AA] flex-shrink-0 mt-0.5" />
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1 min-w-0 flex-1">
                 {event.attendees.map((a) => (
-                  <p key={a.email} className="text-sm text-white">
-                    {a.displayName ?? a.email}
-                    <span className="text-[#8888AA] ml-1 text-xs">{a.email}</span>
-                  </p>
+                  <div key={a.email} className="min-w-0">
+                    <p className="text-sm text-white truncate">{a.displayName ?? a.email}</p>
+                    {a.displayName && <p className="text-xs text-[#8888AA] truncate">{a.email}</p>}
+                  </div>
                 ))}
               </div>
             </div>
@@ -101,11 +101,11 @@ export function EventDetailModal({ event, open, onClose }: EventDetailModalProps
           )}
 
           {/* Calendar */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <Calendar className="h-4 w-4 text-[#8888AA] flex-shrink-0" />
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: event.color }} />
-              <p className="text-sm text-[#8888AA]">{calendarName}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: event.color }} />
+              <p className="text-sm text-[#8888AA] truncate">{calendarName}</p>
             </div>
           </div>
         </div>

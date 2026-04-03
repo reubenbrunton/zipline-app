@@ -25,6 +25,7 @@ export function EventBlock({ event, columnIndex = 0, totalColumns = 1, onClick }
 
   return (
     <button
+      onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => { e.stopPropagation(); onClick(event); }}
       className={cn(
         "absolute rounded-r-lg px-2 py-1 text-left overflow-hidden flex flex-col justify-start items-start",
