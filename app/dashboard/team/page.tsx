@@ -212,7 +212,7 @@ export default function TeamPage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.44, ease: "easeOut" }}
-      className="flex flex-col gap-6 w-full"
+      className="flex flex-col gap-6 w-full h-full overflow-y-auto"
       onClick={() => setMenuOpen(null)}
     >
       {/* Header */}

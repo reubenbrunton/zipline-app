@@ -393,7 +393,7 @@ export default function CRMPage() {
       : "#8888AA";
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="flex flex-col gap-6 w-full h-full overflow-y-auto">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-white">CRM / Clients</h2>

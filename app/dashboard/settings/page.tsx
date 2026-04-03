@@ -166,7 +166,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full">
+    <div className="flex flex-col gap-6 w-full h-full overflow-y-auto">
       <div>
         <h2 className="text-xl font-bold text-white">Settings</h2>
         <p className="text-sm text-[#8888AA] mt-0.5">Manage your personal profile details</p>
