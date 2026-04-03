@@ -15,6 +15,7 @@ import {
   useUnshareCalendar,
 } from "@/hooks/useGoogleCalendar";
 import { useProfiles } from "@/hooks/tasks";
+import { useUser } from "@/hooks/useUser";
 import { AssigneeAvatar } from "@/components/tasks/AssigneeAvatar";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Calendar } from "@/types/calendar";
@@ -34,10 +35,13 @@ function ShareCalendarModal({
   calendar: Calendar;
   onClose: () => void;
 }) {
+  const { data: currentUser } = useUser();
   const { data: profiles = [] } = useProfiles();
   const { data: shares = [] } = useCalendarShares();
   const shareCalendar = useShareCalendar();
   const unshareCalendar = useUnshareCalendar();
+
+  const otherProfiles = profiles.filter((p) => p.id !== currentUser?.id);
 
   const sharedWithIds = shares
     .filter((s) => s.calendar_id === calendar.id)
@@ -72,11 +76,11 @@ function ShareCalendarModal({
           </button>
         </div>
 
-        {profiles.length === 0 ? (
+        {otherProfiles.length === 0 ? (
           <p className="text-xs text-[#8888AA]">No team members found.</p>
         ) : (
           <ul className="space-y-1 max-h-64 overflow-y-auto -mx-1 px-1">
-            {profiles.map((profile) => {
+            {otherProfiles.map((profile) => {
               const isShared = sharedWithIds.includes(profile.id);
               return (
                 <li key={profile.id}>
@@ -238,8 +242,6 @@ export function GoogleCalendarPanel() {
   const { data: calendars = [], isLoading: calsLoading } = useGoogleCalendars();
   const { data: selectedIds = [] } = useCalendarPrefs();
   const { data: sharedCalendars = [] } = useSharedCalendars();
-  const { data: shares = [] } = useCalendarShares();
-  const { data: profiles = [] } = useProfiles();
   const savePrefs = useSaveCalendarPrefs();
   const disconnect = useDisconnectGoogle();
 
@@ -326,47 +328,6 @@ export function GoogleCalendarPanel() {
                 })}
               </ul>
             )}
-          </div>
-        )}
-
-        {/* Shared Calendars — calendars I've shared with others */}
-        {connected && shares.length > 0 && (
-          <div>
-            <p className="text-[11px] font-semibold text-[#8888AA] uppercase tracking-wider mb-2">
-              Shared Calendars
-            </p>
-            <ul className="space-y-2">
-              {/* Group by calendar_id */}
-              {Array.from(new Set(shares.map((s) => s.calendar_id))).map((calId) => {
-                const calShares = shares.filter((s) => s.calendar_id === calId);
-                const name = calShares[0]?.calendar_name ?? calId;
-                const color = colorOverrides[calId] ?? calShares[0]?.calendar_color ?? "#6366F1";
-                const sharedProfiles = calShares
-                  .map((s) => profiles.find((p) => p.id === s.shared_with))
-                  .filter(Boolean);
-
-                return (
-                  <li key={calId}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                      <span className="text-xs text-white/70 truncate">{name}</span>
-                    </div>
-                    {sharedProfiles.length > 0 && (
-                      <div className="flex items-center gap-1.5 pl-4">
-                        {sharedProfiles.map((profile) => profile && (
-                          <AssigneeAvatar key={profile.id} profile={profile} size="xs" />
-                        ))}
-                        <span className="text-[10px] text-[#8888AA]">
-                          {sharedProfiles.length === 1
-                            ? sharedProfiles[0]?.full_name ?? sharedProfiles[0]?.email
-                            : `${sharedProfiles.length} people`}
-                        </span>
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
           </div>
         )}
 
