@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import confetti from "canvas-confetti";
 import {
   DndContext,
   DragOverlay,
@@ -22,11 +23,14 @@ import { ParkedListsPanel } from "./ParkedListsPanel";
 import type { List, ListStage } from "@/types/tasks";
 
 const STAGES: ListStage[] = [
-  "pre_production",
+  "new_project",
+  "strategy",
+  "scripting",
   "production",
   "post_production",
   "revisions",
   "media_buying",
+  "management",
   "completed",
 ];
 
@@ -74,9 +78,25 @@ export function ListKanbanBoard() {
     const { over, active } = event;
     const list = active.data.current?.list as List | undefined;
     if (over && list && over.id !== list.stage) {
-      updateList.mutate({ id: list.id, patch: { stage: over.id as ListStage } });
+      const nextStage = over.id as ListStage;
+      const stagePatch: { stage: ListStage; management_started_at?: string; revision_version?: import("@/types/tasks").RevisionVersion } = { stage: nextStage };
+      if (nextStage === "management" && !list.management_started_at) {
+        stagePatch.management_started_at = new Date().toISOString();
+      }
+      if (nextStage === "revisions" && !list.revision_version) {
+        stagePatch.revision_version = "v1_sent";
+      }
+      updateList.mutate({ id: list.id, patch: stagePatch });
+      if (nextStage === "completed") fireConfetti();
     }
     setActiveList(null);
+  }
+
+  function fireConfetti() {
+    const burst = (opts: confetti.Options) => confetti({ particleCount: 80, spread: 70, ...opts });
+    burst({ origin: { x: 0.3, y: 0.5 } });
+    burst({ origin: { x: 0.7, y: 0.5 } });
+    setTimeout(() => burst({ origin: { x: 0.5, y: 0.3 }, particleCount: 60 }), 150);
   }
 
   return (
@@ -101,7 +121,7 @@ export function ListKanbanBoard() {
         <button
           onClick={() => {
             setEditingList(null);
-            setCreateStage("pre_production");
+            setCreateStage("new_project");
           }}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FF4533] hover:bg-[#e03d2d] text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
         >

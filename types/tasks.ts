@@ -1,13 +1,19 @@
 export type TaskStatus = 'backlog' | 'this_week' | 'today' | 'done'
+export type RevisionVersion = 'v1_sent' | 'v2_sent' | 'v3_sent' | 'final_sent' | 'client_approved'
 export type Priority = 'low' | 'medium' | 'high'
 export type ListStage =
-  | 'pre_production'
+  | 'new_project'
+  | 'strategy'
+  | 'scripting'
   | 'production'
   | 'post_production'
   | 'revisions'
   | 'media_buying'
+  | 'management'
   | 'completed'
   | 'parked'
+  | 'pre_production' // legacy
+
 
 export interface List {
   id: string
@@ -19,6 +25,12 @@ export interface List {
   assignees?: Profile[]
   client_contact_id?: number
   client_name?: string
+  shoot_date?: string
+  shoot_time?: string
+  shoot_deliverables?: string
+  shoot_invitee_ids?: string[]
+  revision_version?: RevisionVersion
+  management_started_at?: string
   icon_url?: string
   is_archived: boolean
   created_at: string

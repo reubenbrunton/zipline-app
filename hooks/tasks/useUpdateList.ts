@@ -4,7 +4,7 @@ import type { List } from "@/types/tasks";
 
 type UpdateListVars = {
   id: string;
-  patch: Partial<Pick<List, "name" | "color" | "stage" | "assignee_id" | "assignee_ids" | "client_contact_id" | "client_name">>;
+  patch: Partial<Pick<List, "name" | "color" | "stage" | "assignee_id" | "assignee_ids" | "client_contact_id" | "client_name" | "shoot_date" | "shoot_time" | "shoot_deliverables" | "shoot_invitee_ids" | "revision_version" | "management_started_at">>;
 };
 
 export function useUpdateList() {

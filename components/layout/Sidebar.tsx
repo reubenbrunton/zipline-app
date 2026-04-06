@@ -18,10 +18,10 @@ import {
   ChevronDown,
   LogOut,
   MoreHorizontal,
-  ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ZiplineLogo } from "@/components/logo/ZiplineLogo";
+import { isTeamOwnerEmail } from "@/lib/team-admin";
 
 interface NavChild {
   href: string;
@@ -37,10 +37,9 @@ interface NavItem {
   disabled?: boolean;
 }
 
-const CRM_EXTERNAL_URL = "https://app.attio.com/zipline-marketing/home";
-
-const navItems: NavItem[] = [
+const ALL_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/project-hub", label: "Project Hub", icon: FolderKanban },
+  { href: "/dashboard/crm", label: "CRM", icon: Users },
   { href: "/dashboard/calendar", label: "Calendar", icon: Calendar },
   { href: "/dashboard/team", label: "Team & Staff", icon: UserCog },
 ];
@@ -56,6 +55,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const { data: user } = useUser();
   const queryClient = useQueryClient();
+  const isAdmin = isTeamOwnerEmail(user?.email);
+  const navItems = ALL_NAV_ITEMS.map((item) => {
+    const blocked = !isAdmin && (user?.blocked_pages ?? []).includes(item.href);
+    const crmRestricted = item.href === "/dashboard/crm" && !isAdmin;
+    return blocked || crmRestricted ? { ...item, disabled: true } : item;
+  });
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -228,38 +233,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </li>
             );
           })}
-        </ul>
-
-        {/* CRM external link */}
-        <ul className="space-y-0.5 px-2 mt-0.5">
-          <li>
-            <a
-              href={CRM_EXTERNAL_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                "relative flex items-center rounded-xl text-sm transition-colors duration-150 select-none text-white/95 hover:text-white",
-                collapsed ? "justify-center mx-1" : ""
-              )}
-              title={collapsed ? "CRM" : undefined}
-            >
-              <div className={cn(
-                "flex items-center gap-3 flex-1 px-3 py-3",
-                collapsed && "justify-center px-0"
-              )}>
-                <Users className={cn(
-                  "flex-shrink-0 transition-colors",
-                  collapsed ? "h-5 w-5" : "h-[18px] w-[18px]"
-                )} />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 truncate font-medium">CRM</span>
-                    <ExternalLink className="h-3 w-3 flex-shrink-0 text-white/30" />
-                  </>
-                )}
-              </div>
-            </a>
-          </li>
         </ul>
 
         {/* ... section separator */}

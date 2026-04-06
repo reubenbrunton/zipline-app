@@ -1,7 +1,7 @@
 import { createClient as createAdminClientBase } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import { TEAM_OWNER_EMAIL, isTeamOwnerEmail } from "@/lib/team-admin";
+import { TEAM_ADMIN_EMAILS, isTeamOwnerEmail } from "@/lib/team-admin";
 
 export async function requireTeamOwner() {
   const supabase = await createServerClient();
@@ -21,7 +21,7 @@ export async function requireTeamOwner() {
     return {
       user,
       errorResponse: NextResponse.json(
-        { error: `Only ${TEAM_OWNER_EMAIL} can manage team members.` },
+        { error: `Only admins (${TEAM_ADMIN_EMAILS.join(", ")}) can manage team members.` },
         { status: 403 }
       ),
     };

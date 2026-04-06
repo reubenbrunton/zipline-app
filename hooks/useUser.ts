@@ -7,6 +7,7 @@ export interface UserProfile {
   full_name: string
   avatar_url?: string
   initials: string
+  blocked_pages: string[]
 }
 
 export function useUser() {
@@ -41,6 +42,7 @@ export function useUser() {
         full_name,
         avatar_url: profile?.avatar_url ?? user.user_metadata?.avatar_url ?? undefined,
         initials,
+        blocked_pages: (profile?.blocked_pages as string[] | null) ?? [],
       }
     },
     staleTime: 5 * 60 * 1000,

@@ -7,13 +7,17 @@ import { ListKanbanCard } from "./ListKanbanCard";
 import type { List, ListStage } from "@/types/tasks";
 
 const STAGE_CONFIG: Record<ListStage, { label: string; color: string }> = {
-  pre_production:  { label: "Pre Production",       color: "#8888AA" },
-  production:      { label: "Production",           color: "#6366F1" },
-  post_production: { label: "Post Production",      color: "#F59E0B" },
-  revisions:       { label: "Revisions / Feedback", color: "#FF4533" },
-  media_buying:    { label: "Media Buying",         color: "#38BDF8" },
-  completed:       { label: "Completed",            color: "#10B981" },
-  parked:          { label: "Parked",               color: "#6B7280" },
+  new_project:     { label: "New Project",           color: "#8888AA" },
+  strategy:        { label: "Strategy",              color: "#6366F1" },
+  scripting:       { label: "Scripting",             color: "#A855F7" },
+  production:      { label: "Production",            color: "#3B82F6" },
+  post_production: { label: "Post Production",       color: "#F59E0B" },
+  revisions:       { label: "Revisions / Feedback",  color: "#FF4533" },
+  media_buying:    { label: "Media Buying",          color: "#38BDF8" },
+  management:      { label: "Management",            color: "#EC4899" },
+  completed:       { label: "Project Completed",     color: "#10B981" },
+  parked:          { label: "Parked",                color: "#6B7280" },
+  pre_production:  { label: "Pre Production",        color: "#8888AA" }, // legacy
 };
 
 interface ListKanbanColumnProps {
@@ -73,7 +77,7 @@ export function ListKanbanColumn({ stage, lists, onEditList }: ListKanbanColumnP
           {lists.map((list) => (
             <motion.div
               key={list.id}
-              layout
+              layout="position"
               initial={{ opacity: 0, y: -12, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.12 } }}

@@ -1,5 +1,8 @@
-export const TEAM_OWNER_EMAIL = "reuben@ziplinemarketing.com.au";
+export const TEAM_ADMIN_EMAILS = [
+  "reuben@ziplinemarketing.com.au",
+  "oli@ziplinemarketing.com.au",
+];
 
 export function isTeamOwnerEmail(email?: string | null): boolean {
-  return (email ?? "").trim().toLowerCase() === TEAM_OWNER_EMAIL;
+  return TEAM_ADMIN_EMAILS.includes((email ?? "").trim().toLowerCase());
 }

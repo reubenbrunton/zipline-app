@@ -6,7 +6,7 @@ import { Plus, Mail, Phone, X, Check, Copy, Loader2, MoreHorizontal, KeyRound, T
 import { createClient } from "@/lib/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/hooks/useUser";
-import { TEAM_OWNER_EMAIL, isTeamOwnerEmail } from "@/lib/team-admin";
+import { isTeamOwnerEmail } from "@/lib/team-admin";
 
 interface TeamMember {
   id: string;
@@ -14,7 +14,15 @@ interface TeamMember {
   email: string | null;
   avatar_url: string | null;
   phone: string | null;
+  blocked_pages: string[] | null;
 }
+
+const PAGE_OPTIONS = [
+  { href: "/dashboard/project-hub", label: "Project Hub" },
+  { href: "/dashboard/crm",         label: "CRM" },
+  { href: "/dashboard/calendar",    label: "Calendar" },
+  { href: "/dashboard/team",        label: "Team & Staff" },
+];
 
 interface MemberFormState {
   full_name: string;
@@ -79,6 +87,7 @@ export default function TeamPage() {
   const [deleteTarget, setDeleteTarget] = useState<TeamMember | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [savingPageAccess, setSavingPageAccess] = useState<string | null>(null);
 
   const { data: members = [], isLoading, error: queryError } = useQuery<TeamMember[]>({
     queryKey: ["team-members"],
@@ -86,7 +95,7 @@ export default function TeamPage() {
       const supabase = createClient();
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, full_name, email, avatar_url, phone")
+        .select("id, full_name, email, avatar_url, phone, blocked_pages")
         .order("full_name", { ascending: true });
       if (error) throw error;
       return data ?? [];
@@ -189,6 +198,22 @@ export default function TeamPage() {
 
     setEditTarget(null);
     refreshMemberQueries();
+  }
+
+  async function handleTogglePage(member: TeamMember, pageHref: string) {
+    if (!canManageMembers) return;
+    const current = member.blocked_pages ?? [];
+    const next = current.includes(pageHref)
+      ? current.filter((p) => p !== pageHref)
+      : [...current, pageHref];
+    setSavingPageAccess(member.id + pageHref);
+    const res = await fetch("/api/admin/update-page-access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: member.id, blocked_pages: next }),
+    });
+    setSavingPageAccess(null);
+    if (res.ok) refreshMemberQueries();
   }
 
   async function handleDelete(member: TeamMember) {
@@ -337,6 +362,33 @@ export default function TeamPage() {
                       </a>
                     )}
                   </div>
+
+                  {/* Page access — admin only, not for self */}
+                  {canManageMembers && !isSelf && (
+                    <div className="w-full pt-2 border-t border-white/[0.05]">
+                      <p className="text-[10px] font-semibold text-[#8888AA] uppercase tracking-wider mb-2 text-left">Page Access</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {PAGE_OPTIONS.map((page) => {
+                          const blocked = (member.blocked_pages ?? []).includes(page.href);
+                          const saving = savingPageAccess === member.id + page.href;
+                          return (
+                            <button
+                              key={page.href}
+                              onClick={(e) => { e.stopPropagation(); handleTogglePage(member, page.href); }}
+                              disabled={saving}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-all ${
+                                blocked
+                                  ? "bg-white/[0.04] text-white/25 line-through border border-white/[0.06]"
+                                  : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 hover:bg-emerald-500/20"
+                              }`}
+                            >
+                              {saving ? "…" : page.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
