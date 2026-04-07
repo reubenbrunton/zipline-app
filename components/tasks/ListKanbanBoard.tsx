@@ -12,10 +12,11 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { Plus } from "lucide-react";
+import { Eye, EyeOff, Plus } from "lucide-react";
 import { formatMinutes } from "@/lib/tasks-api";
 import { useLists, useUpdateList, useMyStats } from "@/hooks/tasks";
 import { useUser } from "@/hooks/useUser";
+import { isTeamOwnerEmail } from "@/lib/team-admin";
 import { ListKanbanColumn } from "./ListKanbanColumn";
 import { ListKanbanCard } from "./ListKanbanCard";
 import { CreateListModal } from "./CreateListModal";
@@ -49,6 +50,9 @@ export function ListKanbanBoard() {
   const [activeList, setActiveList] = useState<List | null>(null);
   const [createStage, setCreateStage] = useState<ListStage | null>(null);
   const [editingList, setEditingList] = useState<List | null>(null);
+  const [showDealValues, setShowDealValues] = useState(true);
+
+  const isAdmin = isTeamOwnerEmail(user?.email);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -56,6 +60,15 @@ export function ListKanbanBoard() {
 
   const parkedLists = useMemo(() => lists.filter((l) => l.stage === "parked"), [lists]);
   const funnelLists = useMemo(() => lists.filter((l) => l.stage !== "parked"), [lists]);
+
+  const pipelineRevenue = useMemo(
+    () => funnelLists.reduce((sum, l) => sum + (l.deal_value ?? 0), 0),
+    [funnelLists]
+  );
+
+  const formattedRevenue = pipelineRevenue > 0
+    ? new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(pipelineRevenue)
+    : null;
 
   const listsByStage = useMemo(
     () =>
@@ -149,10 +162,27 @@ export function ListKanbanBoard() {
         <div className="flex-1 flex flex-col rounded-2xl border border-white/[0.08] bg-white/[0.03] overflow-hidden min-h-0 min-w-0">
           {/* Tile header */}
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] flex-shrink-0">
-            <span className="text-xs font-bold uppercase tracking-widest text-[#8888AA]">Project Funnel</span>
-            <span className="text-[11px] text-[#8888AA]">
-              {funnelLists.length} {funnelLists.length === 1 ? "list" : "lists"}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold uppercase tracking-widest text-[#8888AA]">Project Funnel</span>
+              {isAdmin && formattedRevenue && showDealValues && (
+                <span className="text-xs font-semibold text-emerald-400">{formattedRevenue}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <button
+                  onClick={() => setShowDealValues((v) => !v)}
+                  className="flex items-center gap-1.5 text-[11px] text-[#8888AA] hover:text-white transition-colors"
+                  title={showDealValues ? "Hide deal values" : "Show deal values"}
+                >
+                  {showDealValues ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                  <span>{showDealValues ? "Hide values" : "Show values"}</span>
+                </button>
+              )}
+              <span className="text-[11px] text-[#8888AA]">
+                {funnelLists.length} {funnelLists.length === 1 ? "list" : "lists"}
+              </span>
+            </div>
           </div>
 
           {/* Board */}
@@ -183,12 +213,14 @@ export function ListKanbanBoard() {
                         setCreateStage(null);
                         setEditingList(list);
                       }}
+                      isAdmin={isAdmin}
+                      showDealValues={showDealValues}
                     />
                   ))}
                 </div>
 
                 <DragOverlay dropAnimation={null}>
-                  {activeList && <ListKanbanCard list={activeList} isOverlay />}
+                  {activeList && <ListKanbanCard list={activeList} isOverlay isAdmin={isAdmin} showDealValues={showDealValues} />}
                 </DragOverlay>
               </DndContext>
             )}

@@ -203,6 +203,7 @@ export async function getLists(): Promise<List[]> {
       shoot_invitee_ids: (l.shoot_invitee_ids as string[] | null) ?? undefined,
       revision_version: (l.revision_version as string | null) as import("@/types/tasks").RevisionVersion | undefined ?? undefined,
       management_started_at: (l.management_started_at as string | null) ?? undefined,
+      deal_value: (l.deal_value as number | null) ?? undefined,
       client_contact_id: l.client_contact_id ?? undefined,
       is_archived: l.is_archived,
       created_at: l.created_at,
@@ -266,7 +267,7 @@ export async function createList(data: {
 
 export async function updateList(
   id: string,
-  patch: Partial<Pick<List, 'name' | 'color' | 'stage' | 'assignee_id' | 'assignee_ids' | 'client_contact_id' | 'client_name'>>
+  patch: Partial<Pick<List, 'name' | 'color' | 'stage' | 'assignee_id' | 'assignee_ids' | 'client_contact_id' | 'client_name' | 'deal_value'>>
 ): Promise<List> {
   const supabase = createClient()
 

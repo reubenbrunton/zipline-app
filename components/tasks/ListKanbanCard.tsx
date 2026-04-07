@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertCircle, Archive, Camera, CheckCircle2, Clock, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { AlertCircle, Archive, Camera, CheckCircle2, Clock, DollarSign, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatMinutes } from "@/lib/tasks-api";
 import { useArchiveList, useUpdateList } from "@/hooks/tasks";
@@ -42,15 +42,21 @@ interface ListKanbanCardProps {
   list: List;
   isOverlay?: boolean;
   onEdit?: (list: List) => void;
+  isAdmin?: boolean;
+  showDealValues?: boolean;
 }
 
-export function ListKanbanCard({ list, isOverlay, onEdit }: ListKanbanCardProps) {
+export function ListKanbanCard({ list, isOverlay, onEdit, isAdmin, showDealValues }: ListKanbanCardProps) {
   const router = useRouter();
   const archiveList = useArchiveList();
   const updateList = useUpdateList();
   const [shootModalOpen, setShootModalOpen] = useState(false);
   const [shootSaving, setShootSaving] = useState(false);
   const [deliverableExpanded, setDeliverableExpanded] = useState(false);
+  const [editingDealValue, setEditingDealValue] = useState(false);
+  const [dealValueInput, setDealValueInput] = useState("");
+  const dealValueInputRef = useRef<HTMLInputElement>(null);
+  const cancelDealValueRef = useRef(false);
 
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: list.id,
@@ -107,6 +113,42 @@ export function ListKanbanCard({ list, isOverlay, onEdit }: ListKanbanCardProps)
   function formatShootDate(dateStr: string) {
     const d = new Date(dateStr + "T00:00:00");
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function formatDealValue(value: number | undefined): string {
+    if (!value) return "—";
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+  }
+
+  function parseDealValue(input: string): number | undefined {
+    const cleaned = input.replace(/[^0-9.]/g, "");
+    const num = parseFloat(cleaned);
+    return isNaN(num) || num <= 0 ? undefined : num;
+  }
+
+  function startEditingDealValue(e: React.MouseEvent) {
+    e.stopPropagation();
+    cancelDealValueRef.current = false;
+    setDealValueInput(list.deal_value ? String(list.deal_value) : "");
+    setEditingDealValue(true);
+    setTimeout(() => dealValueInputRef.current?.focus(), 0);
+  }
+
+  function commitDealValue() {
+    if (cancelDealValueRef.current) return;
+    const newValue = parseDealValue(dealValueInput);
+    updateList.mutate({ id: list.id, patch: { deal_value: newValue } });
+    setEditingDealValue(false);
+  }
+
+  function handleDealValueKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      dealValueInputRef.current?.blur(); // blur triggers onBlur → commitDealValue
+    }
+    if (e.key === "Escape") {
+      cancelDealValueRef.current = true;
+      setEditingDealValue(false);
+    }
   }
 
   return (
@@ -345,6 +387,43 @@ export function ListKanbanCard({ list, isOverlay, onEdit }: ListKanbanCardProps)
               <Archive className="w-3.5 h-3.5" />
               Archive Project
             </button>
+          </div>
+        )}
+
+        {/* ── Deal value — admin only, always at bottom ─────────────────────── */}
+        {isAdmin && showDealValues && !isOverlay && (
+          <div
+            className="mt-3 pt-3 border-t border-white/[0.06] pl-2"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {editingDealValue ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.06] border border-white/[0.12]">
+                <DollarSign className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                <input
+                  ref={dealValueInputRef}
+                  value={dealValueInput}
+                  onChange={(e) => setDealValueInput(e.target.value)}
+                  onBlur={commitDealValue}
+                  onKeyDown={handleDealValueKeyDown}
+                  placeholder="0"
+                  className="flex-1 bg-transparent text-xs text-white placeholder:text-white/30 focus:outline-none w-full"
+                />
+              </div>
+            ) : (
+              <button
+                onClick={startEditingDealValue}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors w-full text-left",
+                  list.deal_value
+                    ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/15"
+                    : "bg-white/[0.04] border border-dashed border-white/[0.12] text-white/30 hover:text-white/50 hover:border-white/20"
+                )}
+              >
+                <DollarSign className="w-3 h-3 flex-shrink-0" />
+                <span className="font-semibold">{formatDealValue(list.deal_value)}</span>
+              </button>
+            )}
           </div>
         )}
       </div>

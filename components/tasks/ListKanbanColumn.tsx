@@ -24,9 +24,11 @@ interface ListKanbanColumnProps {
   stage: ListStage;
   lists: List[];
   onEditList?: (list: List) => void;
+  isAdmin?: boolean;
+  showDealValues?: boolean;
 }
 
-export function ListKanbanColumn({ stage, lists, onEditList }: ListKanbanColumnProps) {
+export function ListKanbanColumn({ stage, lists, onEditList, isAdmin, showDealValues }: ListKanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   const config = STAGE_CONFIG[stage];
 
@@ -83,7 +85,7 @@ export function ListKanbanColumn({ stage, lists, onEditList }: ListKanbanColumnP
               exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.12 } }}
               transition={{ type: "spring", stiffness: 480, damping: 36, mass: 0.8 }}
             >
-              <ListKanbanCard list={list} onEdit={onEditList} />
+              <ListKanbanCard list={list} onEdit={onEditList} isAdmin={isAdmin} showDealValues={showDealValues} />
             </motion.div>
           ))}
         </AnimatePresence>
