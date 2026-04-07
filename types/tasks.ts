@@ -32,7 +32,7 @@ export interface List {
   revision_version?: RevisionVersion
   management_started_at?: string
   icon_url?: string
-  deal_value?: number
+  deal_value?: number | null
   is_archived: boolean
   created_at: string
   stage: ListStage

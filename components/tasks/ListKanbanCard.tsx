@@ -115,15 +115,15 @@ export function ListKanbanCard({ list, isOverlay, onEdit, isAdmin, showDealValue
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }
 
-  function formatDealValue(value: number | undefined): string {
+  function formatDealValue(value: number | null | undefined): string {
     if (!value) return "—";
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
   }
 
-  function parseDealValue(input: string): number | undefined {
+  function parseDealValue(input: string): number | null {
     const cleaned = input.replace(/[^0-9.]/g, "");
     const num = parseFloat(cleaned);
-    return isNaN(num) || num <= 0 ? undefined : num;
+    return isNaN(num) || num <= 0 ? null : num;
   }
 
   function startEditingDealValue(e: React.MouseEvent) {
