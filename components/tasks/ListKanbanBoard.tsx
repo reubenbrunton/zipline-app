@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import {
   DndContext,
@@ -12,7 +12,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { Eye, EyeOff, Plus } from "lucide-react";
+import { Eye, EyeOff, Maximize2, Minimize2, Plus } from "lucide-react";
 import { formatMinutes } from "@/lib/tasks-api";
 import { useLists, useUpdateList, useMyStats } from "@/hooks/tasks";
 import { useUser } from "@/hooks/useUser";
@@ -51,8 +51,26 @@ export function ListKanbanBoard() {
   const [createStage, setCreateStage] = useState<ListStage | null>(null);
   const [editingList, setEditingList] = useState<List | null>(null);
   const [showDealValues, setShowDealValues] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const funnelRef = useRef<HTMLDivElement>(null);
 
   const isAdmin = isTeamOwnerEmail(user?.email);
+
+  useEffect(() => {
+    function onFullscreenChange() {
+      setIsFullscreen(!!document.fullscreenElement);
+    }
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      funnelRef.current?.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -159,7 +177,7 @@ export function ListKanbanBoard() {
         />
 
         {/* Right: Project Funnel tile */}
-        <div className="flex-1 flex flex-col rounded-2xl border border-white/[0.08] bg-white/[0.03] overflow-hidden min-h-0 min-w-0">
+        <div ref={funnelRef} className="flex-1 flex flex-col rounded-2xl border border-white/[0.08] bg-[#0F0F1A] overflow-hidden min-h-0 min-w-0">
           {/* Tile header */}
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] flex-shrink-0">
             <div className="flex items-center gap-3">
@@ -182,6 +200,13 @@ export function ListKanbanBoard() {
               <span className="text-[11px] text-[#8888AA]">
                 {funnelLists.length} {funnelLists.length === 1 ? "list" : "lists"}
               </span>
+              <button
+                onClick={toggleFullscreen}
+                className="text-[#8888AA] hover:text-white transition-colors"
+                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+              >
+                {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </button>
             </div>
           </div>
 
