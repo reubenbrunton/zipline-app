@@ -103,7 +103,7 @@ export default function DashboardLayout({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.36, ease: "linear" }}
+                transition={{ duration: 0.12, ease: "linear" }}
                 className="absolute inset-0 h-full"
                 style={{ willChange: "opacity", backfaceVisibility: "hidden" }}
               >

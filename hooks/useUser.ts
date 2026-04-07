@@ -15,8 +15,10 @@ export function useUser() {
     queryKey: ['user'],
     queryFn: async () => {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return null
+      // getSession reads from local storage — no network call
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) return null
+      const user = session.user
 
       const { data: profile } = await supabase
         .from('profiles')

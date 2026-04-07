@@ -140,26 +140,23 @@ export async function getProfiles(): Promise<Profile[]> {
 
 export async function getLists(): Promise<List[]> {
   const supabase = createClient()
-  const { data, error } = await supabase
-    .from('lists')
-    .select('*, list_assignees(user_id), tasks(id, status, priority, time_estimate_minutes, task_assignees(user_id))')
-    .eq('is_archived', false)
-    .order('created_at', { ascending: true })
+
+  // Run both queries in parallel — eliminates the sequential waterfall
+  const [{ data, error }, { data: profileRows }] = await Promise.all([
+    supabase
+      .from('lists')
+      .select('*, list_assignees(user_id), tasks(id, status, priority, time_estimate_minutes, task_assignees(user_id))')
+      .eq('is_archived', false)
+      .order('created_at', { ascending: true }),
+    supabase.from('profiles').select('*'),
+  ])
 
   if (error) throw error
 
   const listRows = data ?? []
-  const profileIds = uniqueIds(
-    listRows.flatMap((list) => [
-      list.assignee_id,
-      ...((list.list_assignees ?? []).map((a: { user_id: string | null }) => a.user_id)),
-      ...((list.tasks ?? []).flatMap((task: { task_assignees?: Array<{ user_id: string | null }> }) =>
-        (task.task_assignees ?? []).map((assignment) => assignment.user_id)
-      )),
-    ])
+  const profileMap = Object.fromEntries(
+    (profileRows ?? []).map((p) => [p.id, mapProfile(p as ProfileRow)])
   )
-
-  const profileMap = await getProfilesByIds(supabase, profileIds)
 
   return listRows.map((l) => {
     const tasks: {
