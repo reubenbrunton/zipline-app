@@ -177,7 +177,7 @@ export function ListKanbanBoard() {
         />
 
         {/* Right: Project Funnel tile */}
-        <div ref={funnelRef} className="flex-1 flex flex-col rounded-2xl border border-white/[0.08] bg-[#0F0F1A] overflow-hidden min-h-0 min-w-0">
+        <div ref={funnelRef} className={`flex-1 flex flex-col rounded-2xl border border-white/[0.08] overflow-hidden min-h-0 min-w-0 ${isFullscreen ? "bg-[#0D0D18]" : "bg-white/[0.03]"}`}>
           {/* Tile header */}
           <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] flex-shrink-0">
             <div className="flex items-center gap-3">
