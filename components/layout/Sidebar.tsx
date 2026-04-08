@@ -9,6 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FolderKanban,
+  Mail,
   Users,
   Calendar,
   UserCog,
@@ -40,6 +41,7 @@ interface NavItem {
 const ALL_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/project-hub", label: "Project Hub", icon: FolderKanban },
   { href: "/dashboard/crm", label: "CRM", icon: Users },
+  { href: "/dashboard/emails", label: "Emails", icon: Mail },
   { href: "/dashboard/calendar", label: "Calendar", icon: Calendar },
   { href: "/dashboard/team", label: "Team & Staff", icon: UserCog },
 ];

@@ -15,6 +15,7 @@ const pageTitles: Record<string, string> = {
   "/dashboard/crm": "CRM / Clients",
   "/dashboard/calendar": "Calendar",
   "/dashboard/invoices": "Invoices & Finance",
+  "/dashboard/emails": "Emails",
   "/dashboard/automations": "Email Automations",
   "/dashboard/team": "Team & Staff",
   "/dashboard/settings": "Settings",
