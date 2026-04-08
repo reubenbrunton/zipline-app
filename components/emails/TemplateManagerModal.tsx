@@ -42,6 +42,8 @@ export function TemplateManagerModal({ open, onClose, editing }: Props) {
   const [variables, setVariables] = useState<TemplateVariable[]>([]);
   const [showValidation, setShowValidation] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const create = useCreateEmailTemplate();
@@ -60,6 +62,8 @@ export function TemplateManagerModal({ open, onClose, editing }: Props) {
       setName(""); setDescription(""); setResendId(""); setPreviewUrl(""); setVariables([]);
     }
     setShowValidation(false);
+    setUploadError(null);
+    setLocalPreview(null);
   }, [open, editing]);
 
   function updateVar(i: number, patch: Partial<TemplateVariable>) {
@@ -74,15 +78,23 @@ export function TemplateManagerModal({ open, onClose, editing }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setUploadError(null);
+    // Show local preview immediately
+    const objectUrl = URL.createObjectURL(file);
+    setLocalPreview(objectUrl);
     try {
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
-      const { url } = await res.json();
-      setPreviewUrl(url);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error ?? "Upload failed");
+      setPreviewUrl(json.url);
+      setLocalPreview(null);
+      URL.revokeObjectURL(objectUrl);
     } catch (err) {
-      console.error(err);
+      setUploadError((err as Error).message);
+      setLocalPreview(null);
+      URL.revokeObjectURL(objectUrl);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -168,16 +180,27 @@ export function TemplateManagerModal({ open, onClose, editing }: Props) {
               onChange={handleFileUpload}
               className="hidden"
             />
-            {previewUrl ? (
+            {(previewUrl || localPreview) ? (
               <div className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.04]">
-                <img src={previewUrl} alt="Preview" className="w-full h-36 object-cover object-top" />
-                <button
-                  type="button"
-                  onClick={() => setPreviewUrl("")}
-                  className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+                <img
+                  src={previewUrl || localPreview!}
+                  alt="Preview"
+                  className="w-full h-36 object-cover object-top"
+                />
+                {uploading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <span className="text-xs text-white font-medium">Uploading…</span>
+                  </div>
+                )}
+                {!uploading && (
+                  <button
+                    type="button"
+                    onClick={() => { setPreviewUrl(""); setLocalPreview(null); }}
+                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             ) : (
               <button
@@ -186,15 +209,12 @@ export function TemplateManagerModal({ open, onClose, editing }: Props) {
                 disabled={uploading}
                 className="w-full h-24 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.03] flex flex-col items-center justify-center gap-2 text-[#8888AA] hover:text-white hover:border-white/25 hover:bg-white/[0.05] transition-all disabled:opacity-50"
               >
-                {uploading ? (
-                  <span className="text-xs">Uploading…</span>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4" />
-                    <span className="text-xs">Upload from device</span>
-                  </>
-                )}
+                <Upload className="w-4 h-4" />
+                <span className="text-xs">Upload from device</span>
               </button>
+            )}
+            {uploadError && (
+              <p className="mt-1.5 text-xs text-red-400">{uploadError}</p>
             )}
           </div>
 
