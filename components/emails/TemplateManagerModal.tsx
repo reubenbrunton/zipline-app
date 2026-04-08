@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ImageIcon, Plus, Trash2, Upload, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +41,8 @@ export function TemplateManagerModal({ open, onClose, editing }: Props) {
   const [previewUrl, setPreviewUrl] = useState("");
   const [variables, setVariables] = useState<TemplateVariable[]>([]);
   const [showValidation, setShowValidation] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const create = useCreateEmailTemplate();
   const update = useUpdateEmailTemplate();
@@ -66,6 +68,25 @@ export function TemplateManagerModal({ open, onClose, editing }: Props) {
 
   function removeVar(i: number) {
     setVariables((v) => v.filter((_, idx) => idx !== i));
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json();
+      setPreviewUrl(url);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -94,7 +115,7 @@ export function TemplateManagerModal({ open, onClose, editing }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#12121E] border-white/[0.08] backdrop-blur-xl max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-white/[0.07] border-white/[0.08] backdrop-blur-xl max-w-xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editing ? "Edit Template" : "New Email Template"}</DialogTitle>
         </DialogHeader>
@@ -137,15 +158,44 @@ export function TemplateManagerModal({ open, onClose, editing }: Props) {
             {showValidation && !resendId.trim() && <p className="mt-1 text-xs text-red-300">Required</p>}
           </div>
 
-          {/* Preview image URL */}
+          {/* Preview image upload */}
           <div>
-            <label className={labelCls}>Preview Image URL <span className="normal-case font-normal opacity-50">(optional)</span></label>
+            <label className={labelCls}>Preview Image <span className="normal-case font-normal opacity-50">(optional)</span></label>
             <input
-              value={previewUrl}
-              onChange={(e) => setPreviewUrl(e.target.value)}
-              placeholder="https://..."
-              className={inputCls}
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
             />
+            {previewUrl ? (
+              <div className="relative rounded-lg overflow-hidden border border-white/[0.08] bg-white/[0.04]">
+                <img src={previewUrl} alt="Preview" className="w-full h-36 object-cover object-top" />
+                <button
+                  type="button"
+                  onClick={() => setPreviewUrl("")}
+                  className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full h-24 rounded-lg border border-dashed border-white/[0.12] bg-white/[0.03] flex flex-col items-center justify-center gap-2 text-[#8888AA] hover:text-white hover:border-white/25 hover:bg-white/[0.05] transition-all disabled:opacity-50"
+              >
+                {uploading ? (
+                  <span className="text-xs">Uploading…</span>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4" />
+                    <span className="text-xs">Upload from device</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Variables */}
