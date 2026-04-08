@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, Link2, Plus, Send, Trash2, X } from "lucide-react";
+import { CheckCircle2, Link2, Send, X } from "lucide-react";
 import { useCRMContacts } from "@/hooks/crm";
 import { useSendEmail } from "@/hooks/emails";
 import { cn } from "@/lib/utils";
@@ -15,13 +15,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Search } from "lucide-react";
 
-interface Recipient {
-  id: string;
-  email: string;
-  name?: string;
-  isCustom: boolean;
-}
-
 interface Props {
   template: EmailTemplate;
 }
@@ -30,28 +23,33 @@ export function EmailComposePanel({ template }: Props) {
   const { data: contacts = [] } = useCRMContacts();
   const sendEmail = useSendEmail();
 
-  const [toRecipients, setToRecipients] = useState<Recipient[]>([]);
-  const [ccRecipients, setCcRecipients] = useState<Recipient[]>([]);
+  const [selectedContact, setSelectedContact] = useState<CRMContact | null>(null);
+  const [toEmail, setToEmail] = useState("");
+  const [ccEmails, setCcEmails] = useState<string[]>([]);
+  const [ccInput, setCcInput] = useState("");
   const [variableValues, setVariableValues] = useState<Record<string, string>>({});
   const [showValidation, setShowValidation] = useState(false);
   const [sent, setSent] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
-  const [customEmail, setCustomEmail] = useState("");
-  const [customName, setCustomName] = useState("");
-  const [addingCustom, setAddingCustom] = useState(false);
 
   // Reset when template changes
   useEffect(() => {
-    setToRecipients([]);
-    setCcRecipients([]);
+    setSelectedContact(null);
+    setToEmail("");
+    setCcEmails([]);
+    setCcInput("");
     setVariableValues({});
     setShowValidation(false);
     setSent(false);
     setContactSearch("");
-    setCustomEmail("");
-    setCustomName("");
-    setAddingCustom(false);
   }, [template.id]);
+
+  // Update toEmail when contact is selected
+  useEffect(() => {
+    if (selectedContact?.email) {
+      setToEmail(selectedContact.email);
+    }
+  }, [selectedContact]);
 
   const variables = template.variables ?? [];
 
@@ -59,72 +57,38 @@ export function EmailComposePanel({ template }: Props) {
     (v) => v.required && !variableValues[v.key]?.trim()
   );
 
-  function addContactToTo(contact: CRMContact) {
-    if (!contact.email) return;
-    const id = `contact-${contact.id}`;
-    if (!toRecipients.some((r) => r.id === id)) {
-      setToRecipients((r) => [
-        ...r,
-        {
-          id,
-          email: contact.email,
-          name: contact.contact ?? contact.company,
-          isCustom: false,
-        },
-      ]);
+  function addCcEmail() {
+    if (!ccInput.trim()) return;
+    if (!ccEmails.includes(ccInput.trim())) {
+      setCcEmails([...ccEmails, ccInput.trim()]);
     }
-    setContactSearch("");
+    setCcInput("");
   }
 
-  function addCustomEmail(field: "to" | "cc") {
-    if (!customEmail.trim()) return;
-    const id = `custom-${Date.now()}`;
-    const recipient: Recipient = {
-      id,
-      email: customEmail.trim(),
-      name: customName.trim() || undefined,
-      isCustom: true,
-    };
-    if (field === "to") {
-      setToRecipients((r) => [...r, recipient]);
-    } else {
-      setCcRecipients((r) => [...r, recipient]);
-    }
-    setCustomEmail("");
-    setCustomName("");
-    setAddingCustom(false);
-  }
-
-  function removeRecipient(field: "to" | "cc", id: string) {
-    if (field === "to") {
-      setToRecipients((r) => r.filter((x) => x.id !== id));
-    } else {
-      setCcRecipients((r) => r.filter((x) => x.id !== id));
-    }
+  function removeCcEmail(email: string) {
+    setCcEmails(ccEmails.filter((e) => e !== email));
   }
 
   async function handleSend() {
     setShowValidation(true);
-    if (toRecipients.length === 0 || missingRequired) return;
-
-    // Send to first To recipient
-    const primaryRecipient = toRecipients[0];
-    const allEmails = [primaryRecipient.email, ...ccRecipients.map((r) => r.email)];
+    if (!toEmail.trim() || missingRequired) return;
 
     await sendEmail.mutateAsync({
       resendTemplateId: template.resend_template_id,
       templateId: template.id,
       templateName: template.name,
-      toEmail: primaryRecipient.email,
-      toName: primaryRecipient.name,
-      contactId: primaryRecipient.isCustom ? undefined : primaryRecipient.id.replace("contact-", ""),
+      toEmail: toEmail.trim(),
+      toName: selectedContact?.contact ?? selectedContact?.company,
+      contactId: selectedContact ? String(selectedContact.id) : undefined,
       variables: variableValues,
     });
 
     setSent(true);
     setTimeout(() => setSent(false), 3000);
-    setToRecipients([]);
-    setCcRecipients([]);
+    setSelectedContact(null);
+    setToEmail("");
+    setCcEmails([]);
+    setCcInput("");
     setVariableValues({});
     setShowValidation(false);
   }
@@ -148,202 +112,126 @@ export function EmailComposePanel({ template }: Props) {
 
       {/* Form */}
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-        {/* Recipients section */}
-        <div className="space-y-3">
-          {/* To Recipients */}
-          <div>
-            <label className={labelCls}>To</label>
-            <div className="space-y-2 mb-3">
-              {toRecipients.length === 0 ? (
-                <p className="text-xs text-white/30 py-2">No recipients yet</p>
-              ) : (
-                toRecipients.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-white truncate">{r.email}</p>
-                      {r.name && <p className="text-[10px] text-white/40 truncate">{r.name}</p>}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeRecipient("to", r.id)}
-                      className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Add to recipient dropdown or custom */}
-            <div className="space-y-2">
-              <DropdownMenu onOpenChange={(o) => { if (o) setContactSearch(""); }}>
-                <DropdownMenuTrigger asChild>
-                  <button className="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-left flex items-center justify-between text-[#8888AA] hover:text-white transition-colors">
-                    <span>+ Add from clients</span>
-                    <span className="text-xs">▾</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width] p-0">
-                  <div className="p-2 border-b border-white/[0.06]">
-                    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-                      <Search className="w-3 h-3 text-[#8888AA] flex-shrink-0" />
-                      <input
-                        autoFocus
-                        value={contactSearch}
-                        onChange={(e) => setContactSearch(e.target.value)}
-                        placeholder="Search clients…"
-                        className="flex-1 bg-transparent text-xs text-white placeholder:text-[#8888AA] focus:outline-none"
-                        onKeyDown={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  </div>
-                  <div className="max-h-52 overflow-y-auto py-1">
-                    {filteredContacts.length === 0 && (
-                      <p className="px-3 py-2 text-xs text-[#8888AA]">No clients found</p>
-                    )}
-                    {filteredContacts.map((c) => (
-                      <DropdownMenuItem
-                        key={c.id}
-                        onSelect={() => addContactToTo(c)}
-                        className="gap-2.5 text-xs"
-                      >
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.logo_color ?? "#8888AA" }} />
-                        <span className="font-medium">{c.company}</span>
-                        {c.contact && <span className="text-white/40">— {c.contact}</span>}
-                        {!c.email && <span className="ml-auto text-red-400/70 text-[10px]">No email</span>}
-                      </DropdownMenuItem>
-                    ))}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Custom email input */}
-              {!addingCustom ? (
-                <button
-                  type="button"
-                  onClick={() => setAddingCustom(true)}
-                  className="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-left flex items-center justify-between text-[#8888AA] hover:text-white transition-colors"
-                >
-                  <span>+ Add custom email</span>
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              ) : (
-                <div className="space-y-2 p-3 rounded-lg bg-white/[0.04] border border-white/[0.08]">
+        {/* Send to client or other */}
+        <div>
+          <label className={labelCls}>Send to</label>
+          <DropdownMenu onOpenChange={(o) => { if (o) setContactSearch(""); }}>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  "w-full h-10 px-3 rounded-lg bg-white/[0.04] border text-sm text-left flex items-center justify-between transition-colors",
+                  showValidation && !toEmail.trim()
+                    ? "border-red-400/60"
+                    : "border-white/[0.08] hover:border-white/[0.16]"
+                )}
+              >
+                <span className={selectedContact || toEmail ? "text-white" : "text-white/30"}>
+                  {selectedContact
+                    ? `${selectedContact.company}${selectedContact.contact ? ` — ${selectedContact.contact}` : ""}`
+                    : toEmail ? toEmail : "Select a client or enter an email…"}
+                </span>
+                <span className="text-white/30 text-xs">▾</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width] p-0">
+              <div className="p-2 border-b border-white/[0.06]">
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                  <Search className="w-3 h-3 text-[#8888AA] flex-shrink-0" />
                   <input
-                    type="email"
-                    value={customEmail}
-                    onChange={(e) => setCustomEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    className={cn(inputCls, "mb-2")}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") addCustomEmail("to");
-                    }}
+                    autoFocus
+                    value={contactSearch}
+                    onChange={(e) => setContactSearch(e.target.value)}
+                    placeholder="Search clients…"
+                    className="flex-1 bg-transparent text-xs text-white placeholder:text-[#8888AA] focus:outline-none"
+                    onKeyDown={(e) => e.stopPropagation()}
                   />
-                  <input
-                    type="text"
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="Name (optional)"
-                    className={cn(inputCls, "mb-2")}
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => addCustomEmail("to")}
-                      className="flex-1 h-8 rounded-lg bg-[#FF4533] hover:bg-[#e03d2d] text-white text-xs font-semibold transition-colors"
-                    >
-                      Add
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setAddingCustom(false); setCustomEmail(""); setCustomName(""); }}
-                      className="flex-1 h-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.06] text-white/60 text-xs font-semibold transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* CC Recipients */}
-          <div>
-            <label className={labelCls}>CC <span className="normal-case font-normal opacity-50">(optional)</span></label>
-            <div className="space-y-2 mb-3">
-              {ccRecipients.length === 0 ? (
-                <p className="text-xs text-white/30 py-2">No CC recipients</p>
-              ) : (
-                ccRecipients.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-white truncate">{r.email}</p>
-                      {r.name && <p className="text-[10px] text-white/40 truncate">{r.name}</p>}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeRecipient("cc", r.id)}
-                      className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setAddingCustom(true)}
-              className="w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-left flex items-center justify-between text-[#8888AA] hover:text-white transition-colors"
-            >
-              <span>+ Add CC recipient</span>
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-
-            {addingCustom && (
-              <div className="mt-2 space-y-2 p-3 rounded-lg bg-white/[0.04] border border-white/[0.08]">
-                <input
-                  type="email"
-                  value={customEmail}
-                  onChange={(e) => setCustomEmail(e.target.value)}
-                  placeholder="email@example.com"
-                  className={cn(inputCls, "mb-2")}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") addCustomEmail("cc");
-                  }}
-                />
-                <input
-                  type="text"
-                  value={customName}
-                  onChange={(e) => setCustomName(e.target.value)}
-                  placeholder="Name (optional)"
-                  className={cn(inputCls, "mb-2")}
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => addCustomEmail("cc")}
-                    className="flex-1 h-8 rounded-lg bg-[#FF4533] hover:bg-[#e03d2d] text-white text-xs font-semibold transition-colors"
-                  >
-                    Add
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setAddingCustom(false); setCustomEmail(""); setCustomName(""); }}
-                    className="flex-1 h-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.06] text-white/60 text-xs font-semibold transition-colors"
-                  >
-                    Cancel
-                  </button>
                 </div>
               </div>
-            )}
-          </div>
+              <div className="max-h-52 overflow-y-auto py-1">
+                <DropdownMenuItem
+                  onSelect={() => { setSelectedContact(null); setToEmail(""); setContactSearch(""); }}
+                  className="text-xs text-white/40"
+                >
+                  None / Other
+                </DropdownMenuItem>
+                {filteredContacts.length === 0 && (
+                  <p className="px-3 py-2 text-xs text-[#8888AA]">No clients found</p>
+                )}
+                {filteredContacts.map((c) => (
+                  <DropdownMenuItem
+                    key={c.id}
+                    onSelect={() => { setSelectedContact(c); setContactSearch(""); }}
+                    className="gap-2.5 text-xs"
+                  >
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.logo_color ?? "#8888AA" }} />
+                    <span className="font-medium">{c.company}</span>
+                    {c.contact && <span className="text-white/40">— {c.contact}</span>}
+                    {c.email && <span className="ml-auto text-white/30 text-[10px]">{c.email}</span>}
+                  </DropdownMenuItem>
+                ))}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
-          {showValidation && toRecipients.length === 0 && (
-            <p className="text-xs text-red-300">Please add at least one recipient</p>
+        {/* Email address field */}
+        <div>
+          <label className={labelCls}>Email address</label>
+          <input
+            type="email"
+            value={toEmail}
+            onChange={(e) => setToEmail(e.target.value)}
+            placeholder="email@example.com"
+            className={cn(inputCls, showValidation && !toEmail.trim() && "border-red-400/60")}
+          />
+          {showValidation && !toEmail.trim() && (
+            <p className="mt-1 text-xs text-red-300">Email is required</p>
           )}
+        </div>
+
+        {/* CC field */}
+        <div>
+          <label className={labelCls}>CC <span className="normal-case font-normal opacity-50">(optional)</span></label>
+          <div className="space-y-2">
+            {ccEmails.length > 0 && (
+              <div className="space-y-1.5">
+                {ccEmails.map((email) => (
+                  <div key={email} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                    <span className="text-xs text-white truncate">{email}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeCcEmail(email)}
+                      className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={ccInput}
+                onChange={(e) => setCcInput(e.target.value)}
+                placeholder="Add CC email…"
+                className={inputCls}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCcEmail();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={addCcEmail}
+                className="px-3 h-10 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white text-xs font-semibold transition-colors flex-shrink-0"
+              >
+                Add
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Variable fields */}
