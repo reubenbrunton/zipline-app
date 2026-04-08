@@ -19,6 +19,8 @@ interface Props {
   template: EmailTemplate;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function EmailComposePanel({ template }: Props) {
   const { data: contacts = [] } = useCRMContacts();
   const sendEmail = useSendEmail();
@@ -48,8 +50,21 @@ export function EmailComposePanel({ template }: Props) {
   useEffect(() => {
     if (selectedContact?.email) {
       setToEmail(selectedContact.email);
+      // Auto-fill client fields if they exist as template variables
+      const variables = template.variables ?? [];
+      const updatedVars = { ...variableValues };
+      const clientNameVar = variables.find((v) => v.key.toLowerCase().includes("client") && v.key.toLowerCase().includes("name"));
+      const clientEmailVar = variables.find((v) => v.key.toLowerCase().includes("client") && v.key.toLowerCase().includes("email"));
+
+      if (clientNameVar && selectedContact.contact) {
+        updatedVars[clientNameVar.key] = selectedContact.contact;
+      }
+      if (clientEmailVar && selectedContact.email) {
+        updatedVars[clientEmailVar.key] = selectedContact.email;
+      }
+      setVariableValues(updatedVars);
     }
-  }, [selectedContact]);
+  }, [selectedContact, template.variables]);
 
   const variables = template.variables ?? [];
 
@@ -57,12 +72,48 @@ export function EmailComposePanel({ template }: Props) {
     (v) => v.required && !variableValues[v.key]?.trim()
   );
 
-  function addCcEmail() {
-    if (!ccInput.trim()) return;
-    if (!ccEmails.includes(ccInput.trim())) {
-      setCcEmails([...ccEmails, ccInput.trim()]);
+  function handleToEmailChange(value: string) {
+    setToEmail(value);
+    // Check if there's a valid email to extract
+    const trimmed = value.trim();
+    if ((trimmed.endsWith(" ") || trimmed.includes("  ")) && EMAIL_REGEX.test(trimmed.trim())) {
+      const email = trimmed.trim().split(/\s+/)[0];
+      if (EMAIL_REGEX.test(email)) {
+        setToEmail(email);
+      }
     }
-    setCcInput("");
+  }
+
+  function handleToEmailKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const trimmed = toEmail.trim();
+    if ((e.key === "Enter" || e.key === " ") && EMAIL_REGEX.test(trimmed)) {
+      e.preventDefault();
+      setToEmail(trimmed);
+    }
+  }
+
+  function handleCcInputChange(value: string) {
+    setCcInput(value);
+    // Check if there's a valid email to extract
+    const trimmed = value.trim();
+    if ((trimmed.endsWith(" ") || trimmed.includes("  ")) && EMAIL_REGEX.test(trimmed.trim())) {
+      const email = trimmed.trim().split(/\s+/)[0];
+      if (EMAIL_REGEX.test(email) && !ccEmails.includes(email)) {
+        setCcEmails([...ccEmails, email]);
+        setCcInput("");
+      }
+    }
+  }
+
+  function handleCcInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const trimmed = ccInput.trim();
+    if ((e.key === "Enter" || e.key === " ") && EMAIL_REGEX.test(trimmed)) {
+      e.preventDefault();
+      if (!ccEmails.includes(trimmed)) {
+        setCcEmails([...ccEmails, trimmed]);
+        setCcInput("");
+      }
+    }
   }
 
   function removeCcEmail(email: string) {
@@ -125,10 +176,10 @@ export function EmailComposePanel({ template }: Props) {
                     : "border-white/[0.08] hover:border-white/[0.16]"
                 )}
               >
-                <span className={selectedContact || toEmail ? "text-white" : "text-white/30"}>
+                <span className={selectedContact ? "text-white" : "text-white/30"}>
                   {selectedContact
                     ? `${selectedContact.company}${selectedContact.contact ? ` — ${selectedContact.contact}` : ""}`
-                    : toEmail ? toEmail : "Select a client or enter an email…"}
+                    : "Select a client or custom email…"}
                 </span>
                 <span className="text-white/30 text-xs">▾</span>
               </button>
@@ -149,10 +200,10 @@ export function EmailComposePanel({ template }: Props) {
               </div>
               <div className="max-h-52 overflow-y-auto py-1">
                 <DropdownMenuItem
-                  onSelect={() => { setSelectedContact(null); setToEmail(""); setContactSearch(""); }}
+                  onSelect={() => { setSelectedContact(null); setToEmail(""); setVariableValues({}); setContactSearch(""); }}
                   className="text-xs text-white/40"
                 >
-                  None / Other
+                  None / Custom Email
                 </DropdownMenuItem>
                 {filteredContacts.length === 0 && (
                   <p className="px-3 py-2 text-xs text-[#8888AA]">No clients found</p>
@@ -180,8 +231,9 @@ export function EmailComposePanel({ template }: Props) {
           <input
             type="email"
             value={toEmail}
-            onChange={(e) => setToEmail(e.target.value)}
-            placeholder="email@example.com"
+            onChange={(e) => handleToEmailChange(e.target.value)}
+            onKeyDown={handleToEmailKeyDown}
+            placeholder="email@example.com (press space or enter to confirm)"
             className={cn(inputCls, showValidation && !toEmail.trim() && "border-red-400/60")}
           />
           {showValidation && !toEmail.trim() && (
@@ -209,28 +261,14 @@ export function EmailComposePanel({ template }: Props) {
                 ))}
               </div>
             )}
-            <div className="flex gap-2">
-              <input
-                type="email"
-                value={ccInput}
-                onChange={(e) => setCcInput(e.target.value)}
-                placeholder="Add CC email…"
-                className={inputCls}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addCcEmail();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={addCcEmail}
-                className="px-3 h-10 rounded-lg bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white text-xs font-semibold transition-colors flex-shrink-0"
-              >
-                Add
-              </button>
-            </div>
+            <input
+              type="email"
+              value={ccInput}
+              onChange={(e) => handleCcInputChange(e.target.value)}
+              onKeyDown={handleCcInputKeyDown}
+              placeholder="Add CC email (press space or enter to add)"
+              className={inputCls}
+            />
           </div>
         </div>
 
