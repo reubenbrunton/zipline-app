@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Mail } from "lucide-react";
@@ -16,7 +16,7 @@ import type { EmailTemplate } from "@/types/emails";
 
 type View = "dashboard" | "compose";
 
-export default function EmailsPage() {
+function EmailsPageInner() {
   const searchParams = useSearchParams();
   const { data: templates = [], isLoading } = useEmailTemplates();
   const { data: contacts = [] } = useCRMContacts();
@@ -142,5 +142,13 @@ export default function EmailsPage() {
         </AnimatePresence>
       </div>
     </motion.div>
+  );
+}
+
+export default function EmailsPage() {
+  return (
+    <Suspense>
+      <EmailsPageInner />
+    </Suspense>
   );
 }
