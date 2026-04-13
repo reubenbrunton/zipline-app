@@ -107,19 +107,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Parse fields — handle both Fillout native format and Zapier-flattened
+  // Parse fields — handle Fillout's { formid, formname, submission: {...} } wrapper,
+  // Fillout's questions array format, and Zapier-flattened payloads
   const fields: Record<string, string> = {};
 
-  if (Array.isArray(body.questions)) {
+  // Unwrap Fillout's top-level submission object if present
+  const data: Record<string, unknown> =
+    (body.submission && typeof body.submission === "object" && !Array.isArray(body.submission))
+      ? (body.submission as Record<string, unknown>)
+      : body;
+
+  if (Array.isArray(data.questions)) {
     // Fillout native: { questions: [{ name, value }] }
-    for (const q of body.questions as Array<{ name?: string; value?: unknown }>) {
+    for (const q of data.questions as Array<{ name?: string; value?: unknown }>) {
       if (q.name && q.value !== undefined && q.value !== null && q.value !== "") {
         fields[q.name.toLowerCase().replace(/[\s-]+/g, "_")] = String(q.value);
       }
     }
   } else {
-    // Zapier flat or direct POST
-    for (const [k, v] of Object.entries(body)) {
+    // Flat key/value object (Zapier or direct POST)
+    for (const [k, v] of Object.entries(data)) {
       if (v !== undefined && v !== null && v !== "") {
         fields[k.toLowerCase().replace(/[\s-]+/g, "_")] = String(v);
       }
