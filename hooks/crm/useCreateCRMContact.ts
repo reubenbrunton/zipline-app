@@ -26,7 +26,15 @@ export function useCreateCRMContact() {
         description: input.description,
         location: input.location,
         tags: input.tags ?? [],
+        sort_order: 0,
         created_at: new Date().toISOString(),
+        business_address: undefined,
+        job_position: undefined,
+        billing_email: undefined,
+        has_branding_assets: undefined,
+        branding_assets_url: undefined,
+        service_agreement_signed: false,
+        service_agreement_signed_at: undefined,
       }
 
       queryClient.setQueryData<CRMContact[]>(['crm_contacts'], (old = []) => [...old, optimistic])

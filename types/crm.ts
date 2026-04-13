@@ -18,7 +18,16 @@ export interface CRMContact {
   description: string | undefined
   location: string | undefined
   tags: ContactTag[]
+  sort_order: number
   created_at: string
+  // Onboarding form fields
+  business_address: string | undefined
+  job_position: string | undefined
+  billing_email: string | undefined
+  has_branding_assets: string | undefined
+  branding_assets_url: string | undefined
+  service_agreement_signed: boolean
+  service_agreement_signed_at: string | undefined
 }
 
 export const PIPELINE_STAGES = [

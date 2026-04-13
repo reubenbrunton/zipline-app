@@ -313,6 +313,15 @@ export async function updateList(
   }
 }
 
+export async function reorderLists(items: { id: string; sort_order: number }[]): Promise<void> {
+  const supabase = createClient()
+  await Promise.all(
+    items.map(({ id, sort_order }) =>
+      supabase.from('lists').update({ sort_order }).eq('id', id)
+    )
+  )
+}
+
 export async function archiveList(id: string): Promise<List> {
   const supabase = createClient()
   const { data: list, error } = await supabase

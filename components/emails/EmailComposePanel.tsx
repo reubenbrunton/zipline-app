@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import confetti from "canvas-confetti";
 import { CheckCircle2, Link2, Send, X } from "lucide-react";
 import { useCRMContacts } from "@/hooks/crm";
 import { useSendEmail } from "@/hooks/emails";
@@ -17,15 +18,16 @@ import { Search } from "lucide-react";
 
 interface Props {
   template: EmailTemplate;
+  initialContact?: CRMContact | null;
 }
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function EmailComposePanel({ template }: Props) {
+export function EmailComposePanel({ template, initialContact }: Props) {
   const { data: contacts = [] } = useCRMContacts();
   const sendEmail = useSendEmail();
 
-  const [selectedContact, setSelectedContact] = useState<CRMContact | null>(null);
+  const [selectedContact, setSelectedContact] = useState<CRMContact | null>(initialContact ?? null);
   const [toEmail, setToEmail] = useState("");
   const [ccEmails, setCcEmails] = useState<string[]>([]);
   const [ccInput, setCcInput] = useState("");
@@ -34,8 +36,18 @@ export function EmailComposePanel({ template }: Props) {
   const [sent, setSent] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
 
-  // Reset when template changes
+  // Apply initialContact when provided (e.g. deep-linked from CRM)
   useEffect(() => {
+    if (!initialContact) return;
+    setSelectedContact(initialContact);
+    setToEmail(initialContact.email ?? "");
+  }, [initialContact?.id]);
+
+  // Reset when template changes
+  const mountedTemplateId = useRef(template.id);
+  useEffect(() => {
+    if (mountedTemplateId.current === template.id) return;
+    mountedTemplateId.current = template.id;
     setSelectedContact(null);
     setToEmail("");
     setCcEmails([]);
@@ -50,18 +62,22 @@ export function EmailComposePanel({ template }: Props) {
   useEffect(() => {
     if (selectedContact?.email) {
       setToEmail(selectedContact.email);
-      // Auto-fill client fields if they exist as template variables
+      // Auto-fill client fields by matching variable labels
       const variables = template.variables ?? [];
       const updatedVars = { ...variableValues };
-      const clientNameVar = variables.find((v) => v.key.toLowerCase().includes("client") && v.key.toLowerCase().includes("name"));
-      const clientEmailVar = variables.find((v) => v.key.toLowerCase().includes("client") && v.key.toLowerCase().includes("email"));
 
-      if (clientNameVar && selectedContact.contact) {
-        updatedVars[clientNameVar.key] = selectedContact.contact;
-      }
-      if (clientEmailVar && selectedContact.email) {
-        updatedVars[clientEmailVar.key] = selectedContact.email;
-      }
+      variables.forEach((v) => {
+        const labelLower = v.label.toLowerCase();
+        // Match client name variations
+        if ((labelLower.includes("client") || labelLower.includes("client's")) && labelLower.includes("name")) {
+          updatedVars[v.key] = selectedContact.contact ?? selectedContact.company ?? "";
+        }
+        // Match client email variations
+        if ((labelLower.includes("client") || labelLower.includes("client's")) && labelLower.includes("email")) {
+          updatedVars[v.key] = selectedContact.email ?? "";
+        }
+      });
+
       setVariableValues(updatedVars);
     }
   }, [selectedContact, template.variables]);
@@ -124,6 +140,14 @@ export function EmailComposePanel({ template }: Props) {
     setShowValidation(true);
     if (!toEmail.trim() || missingRequired) return;
 
+    // Auto-fill hidden email fields with toEmail
+    const finalVars = { ...variableValues };
+    variables.forEach((v) => {
+      if (v.label.toLowerCase().includes("email")) {
+        finalVars[v.key] = toEmail.trim();
+      }
+    });
+
     await sendEmail.mutateAsync({
       resendTemplateId: template.resend_template_id,
       templateId: template.id,
@@ -131,8 +155,13 @@ export function EmailComposePanel({ template }: Props) {
       toEmail: toEmail.trim(),
       toName: selectedContact?.contact ?? selectedContact?.company,
       contactId: selectedContact ? String(selectedContact.id) : undefined,
-      variables: variableValues,
+      variables: finalVars,
     });
+
+    const burst = (opts: confetti.Options) => confetti({ particleCount: 80, spread: 70, ...opts });
+    burst({ origin: { x: 0.3, y: 0.5 } });
+    burst({ origin: { x: 0.7, y: 0.5 } });
+    setTimeout(() => burst({ origin: { x: 0.5, y: 0.3 }, particleCount: 60 }), 150);
 
     setSent(true);
     setTimeout(() => setSent(false), 3000);
@@ -267,6 +296,7 @@ export function EmailComposePanel({ template }: Props) {
               onChange={(e) => handleCcInputChange(e.target.value)}
               onKeyDown={handleCcInputKeyDown}
               placeholder="Add CC email (press space or enter to add)"
+              autoComplete="off"
               className={inputCls}
             />
           </div>
@@ -281,7 +311,7 @@ export function EmailComposePanel({ template }: Props) {
               <div className="h-px flex-1 bg-white/[0.06]" />
             </div>
 
-            {variables.map((variable) => {
+            {variables.filter((v) => !v.label.toLowerCase().includes("email")).map((variable) => {
               const value = variableValues[variable.key] ?? "";
               const hasError = showValidation && variable.required && !value.trim();
 

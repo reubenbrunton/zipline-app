@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
 import {
   Plus,
@@ -26,14 +27,14 @@ import {
   DragOverlay,
   MeasuringStrategy,
   PointerSensor,
-  pointerWithin,
-  useDraggable,
-  useDroppable,
+  closestCenter,
   useSensor,
   useSensors,
+  useDroppable,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import { useSortable, SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import {
@@ -41,6 +42,7 @@ import {
   useCreateCRMContact,
   useUpdateCRMContact,
   useDeleteCRMContact,
+  useReorderCRMContacts,
 } from "@/hooks/crm";
 import {
   PIPELINE_STAGES,
@@ -48,6 +50,9 @@ import {
   type PipelineStage,
 } from "@/types/crm";
 import { ClientDetailModal } from "@/components/crm/ClientDetailModal";
+import { OnboardingEmailTile } from "@/components/crm/OnboardingEmailTile";
+import { useEmailSends } from "@/hooks/emails";
+import type { EmailSend } from "@/types/emails";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -247,10 +252,12 @@ interface FunnelCardProps {
   onStartProject: (contact: CRMContact) => void;
   onUpdateDealValue: (id: string, value: number | undefined) => void;
   onRemoveFromPipeline: (id: string) => void;
+  onStartOnboarding?: (contact: CRMContact) => void;
+  onboardingSend?: EmailSend | null;
 }
 
-function FunnelCard({ contact, stageColor, isOverlay, onDelete, onOpenDetail, onStartProject, onUpdateDealValue, onRemoveFromPipeline }: FunnelCardProps) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+function FunnelCard({ contact, stageColor, isOverlay, onDelete, onOpenDetail, onStartProject, onUpdateDealValue, onRemoveFromPipeline, onStartOnboarding, onboardingSend }: FunnelCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `crm-contact-${contact.id}`,
     data: { contact },
     disabled: isOverlay,
@@ -259,7 +266,10 @@ function FunnelCard({ contact, stageColor, isOverlay, onDelete, onOpenDetail, on
   const [editingDeal, setEditingDeal] = useState(false);
   const [dealRaw, setDealRaw] = useState("");
 
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   if (isDragging && !isOverlay) {
     return (
@@ -405,6 +415,30 @@ function FunnelCard({ contact, stageColor, isOverlay, onDelete, onOpenDetail, on
         </div>
       )}
 
+      {contact.pipeline_stage === "Onboarding" && !isOverlay && (
+        <div className="mt-3 pt-3 border-t border-white/[0.05]">
+          {onboardingSend ? (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25">
+              <Mail className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-semibold text-emerald-400">Onboarding email sent</p>
+                <p className="text-[10px] text-emerald-400/60 truncate">
+                  {onboardingSend.to_email} · {new Date(onboardingSend.sent_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); onStartOnboarding?.(contact); }}
+              className="w-full py-1.5 rounded-lg bg-white/[0.06] hover:bg-[#FF4533]/20 border border-white/[0.08] hover:border-[#FF4533]/40 text-white/60 hover:text-[#FF4533] text-[11px] font-semibold transition-all"
+            >
+              Start Onboarding
+            </button>
+          )}
+        </div>
+      )}
+
       {contact.pipeline_stage === "Onboarded" && !isOverlay && (
         <button
           onPointerDown={(e) => e.stopPropagation()}
@@ -431,9 +465,11 @@ interface FunnelColumnProps {
   onStartProject: (contact: CRMContact) => void;
   onUpdateDealValue: (id: string, value: number | undefined) => void;
   onRemoveFromPipeline: (id: string) => void;
+  onStartOnboarding?: (contact: CRMContact) => void;
+  emailSendsByContactId?: Record<string, EmailSend>;
 }
 
-function FunnelColumn({ stage, color, contacts, droppedContact, onDelete, onOpenDetail, onStartProject, onUpdateDealValue, onRemoveFromPipeline }: FunnelColumnProps) {
+function FunnelColumn({ stage, color, contacts, droppedContact, onDelete, onOpenDetail, onStartProject, onUpdateDealValue, onRemoveFromPipeline, onStartOnboarding, emailSendsByContactId }: FunnelColumnProps) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   const stageTotal = contacts.reduce((sum, c) => sum + (c.deal_value ?? 0), 0);
 
@@ -463,6 +499,7 @@ function FunnelColumn({ stage, color, contacts, droppedContact, onDelete, onOpen
       )}
 
       <div className="rounded-lg p-1 min-h-[100px]">
+        <SortableContext items={contacts.map((c) => `crm-contact-${c.id}`)} strategy={verticalListSortingStrategy}>
         <AnimatePresence mode="popLayout" initial={false}>
           {contacts.length === 0 && (
             <motion.div
@@ -487,13 +524,104 @@ function FunnelColumn({ stage, color, contacts, droppedContact, onDelete, onOpen
                 exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.12 } }}
                 transition={{ type: "spring", stiffness: 480, damping: 36, mass: 0.8 }}
               >
-                <FunnelCard contact={contact} stageColor={color} onDelete={onDelete} onOpenDetail={onOpenDetail} onStartProject={onStartProject} onUpdateDealValue={onUpdateDealValue} onRemoveFromPipeline={onRemoveFromPipeline} />
+                <FunnelCard contact={contact} stageColor={color} onDelete={onDelete} onOpenDetail={onOpenDetail} onStartProject={onStartProject} onUpdateDealValue={onUpdateDealValue} onRemoveFromPipeline={onRemoveFromPipeline} onStartOnboarding={onStartOnboarding} onboardingSend={emailSendsByContactId?.[contact.id] ?? null} />
               </motion.div>
             );
           })}
         </AnimatePresence>
+        </SortableContext>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Move to Pipeline modal
+// ---------------------------------------------------------------------------
+function MoveToPipelineModal({ contact, onClose, onSave }: {
+  contact: CRMContact;
+  onClose: () => void;
+  onSave: (stage: string, dealValue: number | null) => void;
+}) {
+  const [stage, setStage] = useState<string>(PIPELINE_STAGES[0].stage);
+  const [dealRaw, setDealRaw] = useState(contact.deal_value ? String(contact.deal_value) : "");
+
+  function handleSave() {
+    const parsed = parseFloat(dealRaw.replace(/[^0-9.]/g, ""));
+    onSave(stage, isNaN(parsed) || parsed <= 0 ? null : parsed);
+  }
+
+  const labelCls = "text-xs font-semibold text-[#8888AA] uppercase tracking-wider mb-1.5 block";
+  const inputCls = "w-full h-10 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[#FF4533] transition-colors";
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="bg-white/[0.07] border-white/[0.08] backdrop-blur-xl max-w-sm">
+        <DialogHeader>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ backgroundColor: contact.logo_color }}>
+              {contact.logo_initials}
+            </div>
+            <DialogTitle>{contact.company}</DialogTitle>
+          </div>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <label className={labelCls}>Pipeline stage</label>
+            <div className="grid grid-cols-1 gap-1.5">
+              {PIPELINE_STAGES.map((s) => (
+                <button
+                  key={s.stage}
+                  type="button"
+                  onClick={() => setStage(s.stage)}
+                  className={cn(
+                    "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-left transition-colors border",
+                    stage === s.stage
+                      ? "font-medium"
+                      : "border-white/[0.06] bg-white/[0.02] text-white/50 hover:text-white hover:bg-white/[0.05]"
+                  )}
+                  style={stage === s.stage ? { backgroundColor: `${s.color}20`, borderColor: `${s.color}40`, color: s.color, border: "1px solid" } : undefined}
+                >
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                  {s.stage}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>Deal value <span className="normal-case font-normal opacity-50">(optional)</span></label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/30">$</span>
+              <input
+                type="text"
+                value={dealRaw}
+                onChange={(e) => setDealRaw(e.target.value)}
+                placeholder="0"
+                className={cn(inputCls, "pl-7")}
+              />
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#FF4533] text-white hover:bg-[#e03d2d] transition-colors"
+          >
+            Add to pipeline
+          </button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -684,10 +812,12 @@ function AddContactModal({ open, onClose, onSubmit, saving }: AddContactModalPro
 // ---------------------------------------------------------------------------
 export default function CRMPage() {
   const { data: contacts = [], isLoading } = useCRMContacts();
+  const { data: emailSends = [] } = useEmailSends();
 
   const createContact = useCreateCRMContact();
   const updateContact = useUpdateCRMContact();
   const deleteContact = useDeleteCRMContact();
+  const reorderContacts = useReorderCRMContacts();
 
   const [view,              setView]             = useState<View>("dashboard");
   const [dir,               setDir]              = useState(1);
@@ -695,8 +825,9 @@ export default function CRMPage() {
   const [addOpen,           setAddOpen]          = useState(false);
   const [activeContact,     setActiveContact]    = useState<CRMContact | null>(null);
   const [droppedContact,    setDroppedContact]   = useState<{ id: string; yOffset: number } | null>(null);
-  const [recentlyMovedId,   setRecentlyMovedId]  = useState<string | null>(null);
-  const movedAtRef = useRef<Map<string, number>>(new Map());
+  const [onboardingPrompt,  setOnboardingPrompt] = useState<CRMContact | null>(null);
+  const [onboardingTile,    setOnboardingTile]   = useState<CRMContact | null>(null);
+  const [pipelineContact,   setPipelineContact]  = useState<CRMContact | null>(null);
   const [selectedContact,   setSelectedContact]  = useState<CRMContact | null>(null);
   const [startProjectOpen,  setStartProjectOpen] = useState(false);
   const [startProjectClient, setStartProjectClient] = useState<string | undefined>(undefined);
@@ -733,21 +864,31 @@ export default function CRMPage() {
     [contacts]
   );
 
-  // Contacts per stage — recently moved first (by timestamp), then newest created_at
+  // Contacts per stage — sorted by sort_order
   const contactsByStage = useMemo(() => {
     const result: Record<string, CRMContact[]> = {};
     for (const s of PIPELINE_STAGES) {
       result[s.stage] = contacts
         .filter((c) => c.pipeline_stage === s.stage)
-        .sort((a, b) => {
-          const ma = movedAtRef.current.get(a.id) ?? 0;
-          const mb = movedAtRef.current.get(b.id) ?? 0;
-          if (mb !== ma) return mb - ma; // most recently moved first
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-        });
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     }
     return result;
-  }, [contacts, recentlyMovedId]);
+  }, [contacts]);
+
+  // Most recent onboarding email send per contact_id (for onboarding pill)
+  const emailSendsByContactId = useMemo(() => {
+    const map: Record<string, EmailSend> = {};
+    for (const send of emailSends) {
+      if (!send.contact_id) continue;
+      if (!send.template_name?.toLowerCase().includes("onboard")) continue;
+      if (!map[send.contact_id] || send.sent_at > map[send.contact_id].sent_at) {
+        map[send.contact_id] = send;
+      }
+    }
+    return map;
+  }, [emailSends]);
+
+  const router = useRouter();
 
   const navigate = (next: View) => {
     setDir(VIEW_ORDER.indexOf(next) > VIEW_ORDER.indexOf(view) ? 1 : -1);
@@ -767,41 +908,58 @@ export default function CRMPage() {
 
   function handleDragEnd(event: DragEndEvent) {
     const { over, active } = event;
-    if (!activeContact) { setActiveContact(null); return; }
-    if (!over)          { setActiveContact(null); return; }
+    if (!activeContact || !over) { setActiveContact(null); return; }
 
-    // over.id may be a stage name (dropped on column) or a card id (dropped on another card)
-    let nextStage = String(over.id);
-    if (!isPipelineStage(nextStage)) {
-      // dropped on a card — derive stage from that card's data or look it up
-      const overContactId = nextStage.startsWith("crm-contact-")
-        ? nextStage.replace("crm-contact-", "")
-        : null;
-      const overContact = overContactId ? contacts.find((c) => c.id === overContactId) : null;
-      if (!overContact || !overContact.pipeline_stage || !isPipelineStage(overContact.pipeline_stage)) { setActiveContact(null); return; }
-      nextStage = overContact.pipeline_stage;
-    }
+    const overId = String(over.id);
 
-    if (nextStage === "Onboarded" && activeContact.pipeline_stage !== "Onboarded") {
+    const fireOnboardedConfetti = () => {
       const burst = (opts: confetti.Options) => confetti({ particleCount: 80, spread: 70, ...opts });
       burst({ origin: { x: 0.3, y: 0.5 } });
       burst({ origin: { x: 0.7, y: 0.5 } });
       setTimeout(() => burst({ origin: { x: 0.5, y: 0.3 }, particleCount: 60 }), 150);
+    };
+
+    // Dropped on a stage column droppable zone
+    if (isPipelineStage(overId)) {
+      if (overId !== activeContact.pipeline_stage) {
+        const movedContact = { ...activeContact };
+        setDroppedContact(null);
+        updateContact.mutate({ id: activeContact.id, patch: { pipeline_stage: overId } });
+        if (overId === "Onboarded") fireOnboardedConfetti();
+        if (overId === "Onboarding") setTimeout(() => setOnboardingPrompt(movedContact), 400);
+      }
+      setActiveContact(null);
+      return;
     }
 
-    if (nextStage !== activeContact.pipeline_stage) {
-      const translatedRect = active.rect.current.translated;
-      const overRect       = over.rect;
-      const rawOffset      = translatedRect && overRect ? translatedRect.top - overRect.top : -16;
-      const yOffset        = Math.max(-400, Math.min(400, rawOffset));
+    // Dropped on another card
+    if (!overId.startsWith("crm-contact-")) { setActiveContact(null); return; }
+    const overContactId = overId.replace("crm-contact-", "");
+    const overContact = contacts.find((c) => c.id === overContactId);
+    if (!overContact) { setActiveContact(null); return; }
 
-      setDroppedContact({ id: activeContact.id, yOffset });
-      setRecentlyMovedId(activeContact.id);
-      movedAtRef.current.set(activeContact.id, Date.now());
-      setTimeout(() => setDroppedContact(null), 600);
-
+    if (overContact.pipeline_stage !== activeContact.pipeline_stage) {
+      // Cross-column move
+      const nextStage = overContact.pipeline_stage;
+      const movedContact = { ...activeContact };
       updateContact.mutate({ id: activeContact.id, patch: { pipeline_stage: nextStage } });
+      if (isPipelineStage(nextStage) && nextStage === "Onboarded" && activeContact.pipeline_stage !== "Onboarded") {
+        fireOnboardedConfetti();
+      }
+      if (isPipelineStage(nextStage) && nextStage === "Onboarding" && activeContact.pipeline_stage !== "Onboarding") {
+        setTimeout(() => setOnboardingPrompt(movedContact), 400);
+      }
+    } else {
+      // Within-column reorder
+      const stageItems = contactsByStage[activeContact.pipeline_stage] ?? [];
+      const oldIndex = stageItems.findIndex((c) => c.id === activeContact.id);
+      const newIndex = stageItems.findIndex((c) => c.id === overContact.id);
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        const reordered = arrayMove(stageItems, oldIndex, newIndex);
+        reorderContacts.mutate(reordered.map((c, i) => ({ id: c.id, sort_order: i })));
+      }
     }
+
     setActiveContact(null);
   }
 
@@ -1036,13 +1194,38 @@ export default function CRMPage() {
                                   {formatCurrency(c.deal_value)}
                                 </span>
                               </td>
-                              <td className="px-4 py-3.5 w-10">
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleDelete(c.id); }}
-                                  className="opacity-0 group-hover/row:opacity-100 text-white/20 hover:text-red-400 transition-all"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                              <td className="px-4 py-3.5 w-10" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button className="opacity-0 group-hover/row:opacity-100 text-white/30 hover:text-white transition-all flex items-center justify-center w-6 h-6 rounded hover:bg-white/[0.08]">
+                                      <MoreHorizontal className="w-3.5 h-3.5" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="min-w-[170px]">
+                                    <DropdownMenuItem
+                                      onSelect={() => setPipelineContact(c)}
+                                      className="gap-2.5 text-xs"
+                                    >
+                                      <TrendingUp className="w-3.5 h-3.5" />
+                                      Move to pipeline
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onSelect={() => { setStartProjectClient(c.company); setStartProjectOpen(true); }}
+                                      className="gap-2.5 text-xs"
+                                    >
+                                      <FolderKanban className="w-3.5 h-3.5" />
+                                      Start project
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onSelect={() => handleDelete(c.id)}
+                                      className="gap-2.5 text-xs text-red-400 focus:text-red-400"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </td>
                             </tr>
                           ))}
@@ -1057,7 +1240,7 @@ export default function CRMPage() {
               {view === "pipeline" && (
                 <DndContext
                   sensors={sensors}
-                  collisionDetection={pointerWithin}
+                  collisionDetection={closestCenter}
                   measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
                   onDragStart={handleDragStart}
                   onDragEnd={handleDragEnd}
@@ -1076,6 +1259,8 @@ export default function CRMPage() {
                           onStartProject={handleStartProject}
                           onUpdateDealValue={handleUpdateDealValue}
                           onRemoveFromPipeline={handleRemoveFromPipeline}
+                          onStartOnboarding={setOnboardingTile}
+                          emailSendsByContactId={emailSendsByContactId}
                         />
                       ))}
                     </div>
@@ -1137,6 +1322,69 @@ export default function CRMPage() {
           if (pendingRemoveId) handleRemoveFromPipeline(pendingRemoveId);
         }}
       />
+
+      {/* Move to pipeline modal */}
+      {pipelineContact && (
+        <MoveToPipelineModal
+          contact={pipelineContact}
+          onClose={() => setPipelineContact(null)}
+          onSave={(stage, dealValue) => {
+            updateContact.mutate({ id: pipelineContact.id, patch: { pipeline_stage: stage, deal_value: dealValue ?? undefined } });
+            setPipelineContact(null);
+          }}
+        />
+      )}
+
+      {/* Onboarding email prompt */}
+      <Dialog open={!!onboardingPrompt} onOpenChange={(o) => !o && setOnboardingPrompt(null)}>
+        <DialogContent className="bg-white/[0.07] border-white/[0.08] backdrop-blur-xl max-w-sm">
+          {onboardingPrompt && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ backgroundColor: onboardingPrompt.logo_color }}>
+                    {onboardingPrompt.logo_initials}
+                  </div>
+                  <div>
+                    <DialogTitle>{onboardingPrompt.company}</DialogTitle>
+                    <p className="text-xs text-[#8888AA] mt-0.5">moved to Onboarding</p>
+                  </div>
+                </div>
+              </DialogHeader>
+              <p className="text-sm text-white/70">
+                Would you like to send an onboarding email to this client?
+              </p>
+              <DialogFooter>
+                <button
+                  type="button"
+                  onClick={() => setOnboardingPrompt(null)}
+                  className="px-4 py-2 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/[0.06] transition-colors"
+                >
+                  Not now
+                </button>
+                <button
+                  onClick={() => {
+                    const c = onboardingPrompt;
+                    setOnboardingPrompt(null);
+                    setOnboardingTile(c);
+                  }}
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-[#FF4533] text-white hover:bg-[#e03d2d] transition-colors"
+                >
+                  Yes, send email
+                </button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Onboarding email tile */}
+      {onboardingTile && (
+        <OnboardingEmailTile
+          contact={onboardingTile}
+          onClose={() => setOnboardingTile(null)}
+        />
+      )}
     </div>
   );
 }

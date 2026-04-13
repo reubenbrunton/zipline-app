@@ -33,6 +33,7 @@ export interface List {
   management_started_at?: string
   icon_url?: string
   deal_value?: number | null
+  sort_order?: number
   is_archived: boolean
   created_at: string
   stage: ListStage

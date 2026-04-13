@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Phone,
   Mail,
@@ -11,6 +11,11 @@ import {
   FolderKanban,
   X,
   Plus,
+  MapPin,
+  ExternalLink,
+  FileCheck,
+  FileX,
+  Image,
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -47,6 +52,157 @@ const TAG_COLORS = [
 ];
 const fieldCls =
   "w-full bg-transparent border-b border-white/[0.06] py-1.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#FF4533]/60 transition-colors";
+
+// ---------------------------------------------------------------------------
+// Branding Assets Pill
+// ---------------------------------------------------------------------------
+function BrandingAssetsPill({
+  contact,
+  onSave,
+}: {
+  contact: CRMContact;
+  onSave: (patch: Partial<Omit<CRMContact, "id" | "created_at">>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const val = contact.has_branding_assets;
+
+  return (
+    <div ref={ref} className="relative">
+      <label className={labelCls}>
+        <span className="flex items-center gap-1"><Image className="w-2.5 h-2.5" /> Branding assets</span>
+      </label>
+      <div className="flex items-center gap-2 mt-1">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all",
+            val === "yes"
+              ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
+              : val === "no"
+              ? "bg-red-500/15 border-red-500/30 text-red-400 hover:bg-red-500/25"
+              : "bg-white/[0.04] border-white/[0.08] text-white/40 hover:text-white/60"
+          )}
+        >
+          {val === "yes" ? <><Image className="w-3 h-3" /> Assets uploaded</> :
+           val === "no"  ? <><FileX className="w-3 h-3" /> No assets</> :
+                           <><Image className="w-3 h-3" /> Not set</>}
+        </button>
+        {val === "yes" && contact.branding_assets_url && (
+          <a
+            href={contact.branding_assets_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-[#818CF8] hover:text-[#6366F1] transition-colors"
+          >
+            View assets <ExternalLink className="w-3 h-3" />
+          </a>
+        )}
+      </div>
+      {open && (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <button
+            onClick={() => { onSave({ has_branding_assets: "yes" }); setOpen(false); }}
+            className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+          >
+            Yes — uploaded
+          </button>
+          <button
+            onClick={() => { onSave({ has_branding_assets: "no" }); setOpen(false); }}
+            className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 transition-colors"
+          >
+            No — not uploaded
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Service Agreement Pill
+// ---------------------------------------------------------------------------
+function ServiceAgreementPill({
+  contact,
+  onSave,
+}: {
+  contact: CRMContact;
+  onSave: (patch: Partial<Omit<CRMContact, "id" | "created_at">>) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const signed = contact.service_agreement_signed;
+  const signedAt = contact.service_agreement_signed_at
+    ? new Date(contact.service_agreement_signed_at).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+    : null;
+
+  return (
+    <div ref={ref} className="relative">
+      <label className={labelCls}>
+        <span className="flex items-center gap-1"><FileCheck className="w-2.5 h-2.5" /> Service agreement</span>
+      </label>
+      <div className="mt-1">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all",
+            signed
+              ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"
+              : "bg-red-500/15 border-red-500/30 text-red-400 hover:bg-red-500/25"
+          )}
+        >
+          {signed ? (
+            <><FileCheck className="w-3 h-3" /> Signed{signedAt ? ` · ${signedAt}` : ""}</>
+          ) : (
+            <><FileX className="w-3 h-3" /> Not signed</>
+          )}
+        </button>
+      </div>
+      {open && (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <button
+            onClick={() => {
+              onSave({ service_agreement_signed: true, service_agreement_signed_at: new Date().toISOString() });
+              setOpen(false);
+            }}
+            className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+          >
+            Mark as signed
+          </button>
+          <button
+            onClick={() => {
+              onSave({ service_agreement_signed: false, service_agreement_signed_at: undefined });
+              setOpen(false);
+            }}
+            className="px-3 py-1 rounded-lg text-xs font-semibold bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 transition-colors"
+          >
+            Mark as not signed
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function ClientDetailModal({ contact, onClose, onStartProject }: ClientDetailModalProps) {
   const updateContact = useUpdateCRMContact();
@@ -141,7 +297,7 @@ export function ClientDetailModal({ contact, onClose, onStartProject }: ClientDe
         </div>
 
         <div className="space-y-5">
-          {/* Contact info row */}
+          {/* Contact info + onboarding fields — one continuous grid */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
             <div>
               <label className={labelCls}>
@@ -232,6 +388,52 @@ export function ClientDetailModal({ contact, onClose, onStartProject }: ClientDe
               {contact.deal_value && (
                 <p className="text-[11px] text-emerald-400/70 mt-0.5">{formatCurrency(contact.deal_value)}</p>
               )}
+            </div>
+            <div>
+              <label className={labelCls}>
+                <span className="flex items-center gap-1"><Briefcase className="w-2.5 h-2.5" /> Job position</span>
+              </label>
+              <input
+                key={contact.id + "-position"}
+                defaultValue={contact.job_position ?? ""}
+                placeholder="CEO"
+                onBlur={(e) => save({ job_position: e.target.value.trim() || undefined })}
+                className={fieldCls}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>
+                <span className="flex items-center gap-1"><Mail className="w-2.5 h-2.5" /> Billing email</span>
+              </label>
+              <input
+                key={contact.id + "-billing-email"}
+                defaultValue={contact.billing_email ?? ""}
+                placeholder="accounts@company.com"
+                type="email"
+                onBlur={(e) => save({ billing_email: e.target.value.trim() || undefined })}
+                className={fieldCls}
+              />
+            </div>
+            {/* Business address — full width */}
+            <div className="col-span-2">
+              <label className={labelCls}>
+                <span className="flex items-center gap-1"><MapPin className="w-2.5 h-2.5" /> Business address</span>
+              </label>
+              <input
+                key={contact.id + "-address"}
+                defaultValue={contact.business_address ?? ""}
+                placeholder="123 Main St, Sydney NSW 2000"
+                onBlur={(e) => save({ business_address: e.target.value.trim() || undefined })}
+                className={fieldCls}
+              />
+            </div>
+            {/* Branding assets pill — full width */}
+            <div className="col-span-2">
+              <BrandingAssetsPill contact={contact} onSave={save} />
+            </div>
+            {/* Service agreement pill — full width */}
+            <div className="col-span-2">
+              <ServiceAgreementPill contact={contact} onSave={save} />
             </div>
           </div>
 

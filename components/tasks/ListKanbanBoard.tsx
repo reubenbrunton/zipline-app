@@ -6,15 +6,16 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
-  closestCorners,
+  closestCenter,
   useSensor,
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
 import { Eye, EyeOff, Maximize2, Minimize2, Plus } from "lucide-react";
 import { formatMinutes } from "@/lib/tasks-api";
-import { useLists, useUpdateList, useMyStats } from "@/hooks/tasks";
+import { useLists, useUpdateList, useMyStats, useReorderLists } from "@/hooks/tasks";
 import { useUser } from "@/hooks/useUser";
 import { isTeamOwnerEmail } from "@/lib/team-admin";
 import { ListKanbanColumn } from "./ListKanbanColumn";
@@ -45,6 +46,7 @@ function getGreeting(): string {
 export function ListKanbanBoard() {
   const { data: lists = [], isLoading } = useLists();
   const updateList = useUpdateList();
+  const reorderLists = useReorderLists();
   const { data: myStats } = useMyStats();
   const { data: user } = useUser();
   const [activeList, setActiveList] = useState<List | null>(null);
@@ -91,7 +93,9 @@ export function ListKanbanBoard() {
   const listsByStage = useMemo(
     () =>
       STAGES.reduce((acc, stage) => {
-        acc[stage] = funnelLists.filter((l) => l.stage === stage);
+        acc[stage] = funnelLists
+          .filter((l) => l.stage === stage)
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
         return acc;
       }, {} as Record<ListStage, List[]>),
     [funnelLists]
@@ -108,8 +112,35 @@ export function ListKanbanBoard() {
   function handleDragEnd(event: DragEndEvent) {
     const { over, active } = event;
     const list = active.data.current?.list as List | undefined;
-    if (over && list && over.id !== list.stage) {
-      const nextStage = over.id as ListStage;
+    if (!list || !over) { setActiveList(null); return; }
+
+    const overId = String(over.id);
+
+    // Dropped on a stage column (empty droppable zone)
+    if (STAGES.includes(overId as ListStage)) {
+      const nextStage = overId as ListStage;
+      if (nextStage !== list.stage) {
+        const stagePatch: { stage: ListStage; management_started_at?: string; revision_version?: import("@/types/tasks").RevisionVersion } = { stage: nextStage };
+        if (nextStage === "management" && !list.management_started_at) {
+          stagePatch.management_started_at = new Date().toISOString();
+        }
+        if (nextStage === "revisions" && !list.revision_version) {
+          stagePatch.revision_version = "v1_sent";
+        }
+        updateList.mutate({ id: list.id, patch: stagePatch });
+        if (nextStage === "completed") fireConfetti();
+      }
+      setActiveList(null);
+      return;
+    }
+
+    // Dropped on another card
+    const overList = lists.find((l) => l.id === overId);
+    if (!overList) { setActiveList(null); return; }
+
+    if (overList.stage !== list.stage) {
+      // Cross-column move
+      const nextStage = overList.stage as ListStage;
       const stagePatch: { stage: ListStage; management_started_at?: string; revision_version?: import("@/types/tasks").RevisionVersion } = { stage: nextStage };
       if (nextStage === "management" && !list.management_started_at) {
         stagePatch.management_started_at = new Date().toISOString();
@@ -119,7 +150,17 @@ export function ListKanbanBoard() {
       }
       updateList.mutate({ id: list.id, patch: stagePatch });
       if (nextStage === "completed") fireConfetti();
+    } else {
+      // Within-column reorder
+      const stageItems = listsByStage[list.stage as ListStage];
+      const oldIndex = stageItems.findIndex((l) => l.id === list.id);
+      const newIndex = stageItems.findIndex((l) => l.id === overList.id);
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        const reordered = arrayMove(stageItems, oldIndex, newIndex);
+        reorderLists.mutate(reordered.map((l, i) => ({ id: l.id, sort_order: i })));
+      }
     }
+
     setActiveList(null);
   }
 
@@ -224,7 +265,7 @@ export function ListKanbanBoard() {
             ) : (
               <DndContext
                 sensors={sensors}
-                collisionDetection={closestCorners}
+                collisionDetection={closestCenter}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
               >

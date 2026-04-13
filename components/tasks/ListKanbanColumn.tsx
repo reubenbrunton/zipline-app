@@ -1,6 +1,7 @@
 "use client";
 
 import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ListKanbanCard } from "./ListKanbanCard";
@@ -63,6 +64,7 @@ export function ListKanbanColumn({ stage, lists, onEditList, isAdmin, showDealVa
           isOver ? "bg-white/[0.04]" : "bg-transparent"
         )}
       >
+        <SortableContext items={lists.map((l) => l.id)} strategy={verticalListSortingStrategy}>
         <AnimatePresence mode="popLayout" initial={false}>
           {lists.length === 0 && (
             <motion.div
@@ -89,6 +91,7 @@ export function ListKanbanColumn({ stage, lists, onEditList, isAdmin, showDealVa
             </motion.div>
           ))}
         </AnimatePresence>
+        </SortableContext>
       </div>
     </div>
   );

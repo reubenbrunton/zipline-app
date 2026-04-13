@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useDraggable } from "@dnd-kit/core";
+import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AlertCircle, Archive, Camera, CheckCircle2, Clock, DollarSign, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -58,13 +58,16 @@ export function ListKanbanCard({ list, isOverlay, onEdit, isAdmin, showDealValue
   const dealValueInputRef = useRef<HTMLInputElement>(null);
   const cancelDealValueRef = useRef(false);
 
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: list.id,
     data: { list },
     disabled: isOverlay,
   });
 
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
 
   if (isDragging && !isOverlay) {
     return (

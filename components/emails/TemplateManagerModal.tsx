@@ -185,7 +185,7 @@ export function TemplateManagerModal({ open, onClose, editing }: Props) {
                 <img
                   src={previewUrl || localPreview!}
                   alt="Preview"
-                  className="w-full h-36 object-cover object-top"
+                  className="w-full h-48 object-contain bg-black/20"
                 />
                 {uploading && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">

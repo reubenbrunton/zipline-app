@@ -19,6 +19,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email service not configured" }, { status: 500 });
   }
 
+  const uppercasedVars = Object.fromEntries(
+    Object.entries(variables ?? {}).map(([k, v]) => [k.toUpperCase(), v])
+  );
+
   const resendRes = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -26,10 +30,12 @@ export async function POST(req: NextRequest) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "Zipline <hello@ziplinemarketing.com.au>",
-      to: [toEmail],
-      template_id: resendTemplateId,
-      data: variables ?? {},
+      from: "Zipline Team <team@ziplinemarketing.com.au>",
+      to: toEmail,
+      template: {
+        id: resendTemplateId,
+        variables: uppercasedVars,
+      },
     }),
   });
 

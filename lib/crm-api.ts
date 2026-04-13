@@ -25,7 +25,15 @@ function mapRow(row: Record<string, unknown>): CRMContact {
     description: (row.description as string | null) ?? undefined,
     location: (row.location as string | null) ?? undefined,
     tags: (row.tags as ContactTag[] | null) ?? [],
+    sort_order: (row.sort_order as number | null) ?? 0,
     created_at: row.created_at as string,
+    business_address: (row.business_address as string | null) ?? undefined,
+    job_position: (row.job_position as string | null) ?? undefined,
+    billing_email: (row.billing_email as string | null) ?? undefined,
+    has_branding_assets: (row.has_branding_assets as string | null) ?? undefined,
+    branding_assets_url: (row.branding_assets_url as string | null) ?? undefined,
+    service_agreement_signed: (row.service_agreement_signed as boolean | null) ?? false,
+    service_agreement_signed_at: (row.service_agreement_signed_at as string | null) ?? undefined,
   }
 }
 
@@ -33,8 +41,8 @@ export async function getCRMContacts(): Promise<CRMContact[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('crm_contacts')
-    .select('id, company, logo_initials, logo_color, contact, phone, email, website, pipeline_stage, service, deal_value, description, location, tags, created_at')
-    .order('created_at', { ascending: true })
+    .select('id, company, logo_initials, logo_color, contact, phone, email, website, pipeline_stage, service, deal_value, description, location, tags, sort_order, created_at, business_address, job_position, billing_email, has_branding_assets, branding_assets_url, service_agreement_signed, service_agreement_signed_at')
+    .order('sort_order', { ascending: true })
 
   if (error) throw error
   return (data ?? []).map(mapRow)
@@ -96,6 +104,15 @@ export async function updateCRMContact(
 
   if (error) throw error
   return mapRow(data as Record<string, unknown>)
+}
+
+export async function reorderCRMContacts(items: { id: string; sort_order: number }[]): Promise<void> {
+  const supabase = createClient()
+  await Promise.all(
+    items.map(({ id, sort_order }) =>
+      supabase.from('crm_contacts').update({ sort_order }).eq('id', id)
+    )
+  )
 }
 
 export async function deleteCRMContact(id: string): Promise<void> {
