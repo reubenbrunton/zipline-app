@@ -4,7 +4,7 @@ import { useEmailSends } from "@/hooks/emails";
 import { Clock } from "lucide-react";
 
 export function EmailSendHistory() {
-  const { data: sends = [], isLoading } = useEmailSends(10);
+  const { data: sends = [], isLoading } = useEmailSends();
 
   if (isLoading || sends.length === 0) return null;
 
