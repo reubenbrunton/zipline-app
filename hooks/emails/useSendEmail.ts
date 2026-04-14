@@ -8,6 +8,7 @@ type SendEmailVars = {
   toName?: string;
   contactId?: string;
   variables?: Record<string, string>;
+  ccEmails?: string[];
 };
 
 export function useSendEmail() {
