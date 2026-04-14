@@ -170,15 +170,19 @@ export async function POST(req: NextRequest) {
     if (value === undefined || value === "") continue;
 
     if (dbKey === "service_agreement_signed") {
-      const signed = ["true", "yes", "1", "signed"].includes(value.toLowerCase());
-      patch[dbKey] = signed;
-      if (signed) patch["service_agreement_signed_at"] = new Date().toISOString();
+      // Any non-empty value means they signed — it's a required signature field
+      patch[dbKey] = true;
+      patch["service_agreement_signed_at"] = new Date().toISOString();
     } else if (dbKey === "has_branding_assets") {
       patch[dbKey] = value.toLowerCase().startsWith("y") ? "yes" : "no";
     } else {
       patch[dbKey] = value;
     }
   }
+
+  // Every form submission means the agreement was signed (it's a required field)
+  patch["service_agreement_signed"] = true;
+  patch["service_agreement_signed_at"] = new Date().toISOString();
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "No recognisable fields in payload", received_keys: Object.keys(fields) }, { status: 400 });
