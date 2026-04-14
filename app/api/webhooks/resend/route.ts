@@ -17,40 +17,52 @@ export async function POST(req: NextRequest) {
   }
 
   const type = body.type as string;
+  const emailId = (body.data as Record<string, unknown>)?.email_id as string | undefined;
 
-  // Only handle open events
-  if (type !== "email.opened") {
+  if (!emailId) {
     return NextResponse.json({ received: true });
   }
 
-  const emailId = (body.data as Record<string, unknown>)?.email_id as string | undefined;
-  if (!emailId) {
-    return NextResponse.json({ error: "No email_id in payload" }, { status: 400 });
+  // Only handle events we care about
+  if (!["email.delivered", "email.clicked", "email.bounced", "email.complained"].includes(type)) {
+    return NextResponse.json({ received: true });
   }
 
   const supabase = getServiceClient();
 
-  // Find the send record by Resend's email ID
   const { data: send, error: findErr } = await supabase
     .from("email_sends")
-    .select("id, opened_at, open_count")
+    .select("id, delivery_status")
     .eq("resend_email_id", emailId)
     .single();
 
   if (findErr || !send) {
-    // Not found — not an error, just an email we didn't send via the app
     return NextResponse.json({ received: true });
   }
 
   const now = new Date().toISOString();
+  const patch: Record<string, unknown> = {};
 
-  await supabase
-    .from("email_sends")
-    .update({
-      opened_at: send.opened_at ?? now,   // only record first open time
-      open_count: (send.open_count ?? 0) + 1,
-    })
-    .eq("id", send.id);
+  if (type === "email.delivered") {
+    // Only set delivered if not already clicked (clicked is a higher status)
+    if (send.delivery_status === "sent") {
+      patch.delivery_status = "delivered";
+      patch.delivered_at = now;
+    }
+  } else if (type === "email.clicked") {
+    patch.delivery_status = "clicked";
+    patch.clicked_at = now;
+    // Also backfill delivered_at if we somehow missed that event
+    if (!send.delivery_status || send.delivery_status === "sent") {
+      patch.delivered_at = now;
+    }
+  } else if (type === "email.bounced" || type === "email.complained") {
+    patch.delivery_status = "bounced";
+  }
+
+  if (Object.keys(patch).length > 0) {
+    await supabase.from("email_sends").update(patch).eq("id", send.id);
+  }
 
   return NextResponse.json({ received: true });
 }

@@ -31,4 +31,7 @@ export interface EmailSend {
   resend_email_id?: string;
   opened_at?: string;
   open_count: number;
+  delivered_at?: string;
+  clicked_at?: string;
+  delivery_status: "sent" | "delivered" | "clicked" | "bounced";
 }

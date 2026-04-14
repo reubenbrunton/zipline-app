@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       from: "Zipline Team <team@ziplinemarketing.com.au>",
       to: toEmail,
       ...(ccEmails?.length ? { cc: ccEmails } : {}),
-      open_tracking: true,
+      click_tracking: true,
       template: {
         id: resendTemplateId,
         variables: uppercasedVars,
