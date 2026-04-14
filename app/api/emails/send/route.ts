@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
       from: "Zipline Team <team@ziplinemarketing.com.au>",
       to: toEmail,
       ...(ccEmails?.length ? { cc: ccEmails } : {}),
+      open_tracking: true,
       template: {
         id: resendTemplateId,
         variables: uppercasedVars,
@@ -46,6 +47,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err?.message ?? "Failed to send email" }, { status: 502 });
   }
 
+  const resendData = await resendRes.json();
+  const resendEmailId = resendData?.id ?? null;
+
   // Log the send
   await supabase.from("email_sends").insert({
     template_id: templateId ?? null,
@@ -55,6 +59,7 @@ export async function POST(req: NextRequest) {
     contact_id: contactId ?? null,
     variables: variables ?? {},
     sent_by: user.id,
+    resend_email_id: resendEmailId,
   });
 
   return NextResponse.json({ success: true });

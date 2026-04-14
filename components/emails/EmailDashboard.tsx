@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Mail, Send, Users, LayoutTemplate } from "lucide-react";
+import { ArrowDown, ArrowUp, Mail, Send, Users, LayoutTemplate, Eye } from "lucide-react";
 import { useEmailSends } from "@/hooks/emails";
 import { useProfiles } from "@/hooks/tasks/useProfiles";
 
@@ -48,11 +48,15 @@ export function EmailDashboard({ onCompose }: Props) {
     const thisMonth = sends.filter((s) => new Date(s.sent_at) >= startOfMonth);
     const uniqueClients = new Set(sends.map((s) => s.to_email)).size;
     const uniqueTemplates = new Set(sends.filter((s) => s.template_name).map((s) => s.template_name)).size;
+    const opened = sends.filter((s) => s.opened_at).length;
+    const openRate = sends.length > 0 ? Math.round((opened / sends.length) * 100) : 0;
     return {
       thisMonth: thisMonth.length,
       total: sends.length,
       uniqueClients,
       uniqueTemplates,
+      opened,
+      openRate,
     };
   }, [sends]);
 
@@ -66,7 +70,7 @@ export function EmailDashboard({ onCompose }: Props) {
   const statCards = [
     { label: "Sent this month", value: stats.thisMonth, icon: Send, color: "text-[#FF4533]" },
     { label: "Total sent", value: stats.total, icon: Mail, color: "text-blue-400" },
-    { label: "Unique recipients", value: stats.uniqueClients, icon: Users, color: "text-emerald-400" },
+    { label: "Open rate", value: `${stats.openRate}%`, icon: Eye, color: "text-emerald-400" },
     { label: "Templates used", value: stats.uniqueTemplates, icon: LayoutTemplate, color: "text-purple-400" },
   ];
 
@@ -180,10 +184,21 @@ export function EmailDashboard({ onCompose }: Props) {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          Sent
-                        </span>
+                        {send.opened_at ? (
+                          <div className="flex flex-col gap-1">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[11px] font-medium">
+                              <Eye className="w-3 h-3" />
+                              Opened
+                              {send.open_count > 1 && <span className="text-blue-400/60">×{send.open_count}</span>}
+                            </span>
+                            <span className="text-[10px] text-white/30 pl-1">{timeAgo(send.opened_at)}</span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                            Sent
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
