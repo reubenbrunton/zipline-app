@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/offboard",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}

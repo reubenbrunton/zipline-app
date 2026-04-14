@@ -184,6 +184,9 @@ export async function POST(req: NextRequest) {
   patch["service_agreement_signed"] = true;
   patch["service_agreement_signed_at"] = new Date().toISOString();
 
+  // Move to Onboarded stage on form completion
+  patch["pipeline_stage"] = "Onboarded";
+
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "No recognisable fields in payload", received_keys: Object.keys(fields) }, { status: 400 });
   }
