@@ -156,6 +156,7 @@ export function EmailComposePanel({ template, initialContact }: Props) {
       toName: selectedContact?.contact ?? selectedContact?.company,
       contactId: selectedContact ? String(selectedContact.id) : undefined,
       variables: finalVars,
+      ccEmails: ccEmails.length > 0 ? ccEmails : undefined,
     });
 
     const burst = (opts: confetti.Options) => confetti({ particleCount: 80, spread: 70, ...opts });

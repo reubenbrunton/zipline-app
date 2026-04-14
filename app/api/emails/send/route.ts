@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
-  const { resendTemplateId, templateId, templateName, toEmail, toName, contactId, variables } = await req.json();
+  const { resendTemplateId, templateId, templateName, toEmail, toName, contactId, variables, ccEmails } = await req.json();
 
   if (!resendTemplateId || !toEmail) {
     return NextResponse.json({ error: "resendTemplateId and toEmail are required" }, { status: 400 });
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       from: "Zipline Team <team@ziplinemarketing.com.au>",
       to: toEmail,
+      ...(ccEmails?.length ? { cc: ccEmails } : {}),
       template: {
         id: resendTemplateId,
         variables: uppercasedVars,
