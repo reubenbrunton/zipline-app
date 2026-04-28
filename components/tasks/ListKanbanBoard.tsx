@@ -7,10 +7,12 @@ import {
   DragOverlay,
   PointerSensor,
   closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { Eye, EyeOff, Maximize2, Minimize2, Plus } from "lucide-react";
@@ -23,6 +25,15 @@ import { ListKanbanCard } from "./ListKanbanCard";
 import { CreateListModal } from "./CreateListModal";
 import { ParkedListsPanel } from "./ParkedListsPanel";
 import type { List, ListStage } from "@/types/tasks";
+
+// When a column is empty, closestCenter picks the nearest card in an adjacent
+// column instead of the empty droppable zone. Fix: if the pointer is inside any
+// droppable container, use that hit; otherwise fall back to closestCenter.
+const collisionDetection: CollisionDetection = (args) => {
+  const pointerHits = pointerWithin(args);
+  if (pointerHits.length > 0) return pointerHits;
+  return closestCenter(args);
+};
 
 const STAGES: ListStage[] = [
   "new_project",
@@ -265,7 +276,7 @@ export function ListKanbanBoard() {
             ) : (
               <DndContext
                 sensors={sensors}
-                collisionDetection={closestCenter}
+                collisionDetection={collisionDetection}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
               >
